@@ -1,0 +1,38 @@
+version: "3.9"
+
+x-kcpp-common: &kcpp
+  image: koboldai/koboldcpp:latest
+  platform: linux/amd64
+  restart: unless-stopped
+  volumes:
+    - ./models:/models
+  environment:
+    KCPP_FLAGS: ""
+
+services:
+  koboldcpp-q8:
+    <<: *kcpp
+    environment:
+      KCPP_MODEL: /models/phi-4-Q8_0.gguf
+      KCPP_PORT: "5001"
+      KCPP_FLAGS: ""
+    ports:
+      - "5001:5001"
+
+  koboldcpp-q6:
+    <<: *kcpp
+    environment:
+      KCPP_MODEL: /models/phi-4-Q6_K.gguf
+      KCPP_PORT: "5002"
+      KCPP_FLAGS: ""
+    ports:
+      - "5002:5002"
+
+  koboldcpp-q4:
+    <<: *kcpp
+    environment:
+      KCPP_MODEL: /models/phi-4-Q4_K_S.gguf
+      KCPP_PORT: "5003"
+      KCPP_FLAGS: ""
+    ports:
+      - "5003:5003"

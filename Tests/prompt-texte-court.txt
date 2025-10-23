@@ -1,0 +1,22 @@
+Une carte interactive inédite permet de connaître les polluants présents dans l’eau potable distribuée à chaque adresse
+Les associations Générations futures et Data for Good ont intégré dans une même carte interactive les données sur la présence de pesticides, nitrates, PFAS, ou CVM dans l’eau distribuée en France métropolitaine. Elle révèle des inégalités territoriales et des défauts d’information des populations.
+
+Vous pouvez partager un article en cliquant sur les icônes de partage en haut à droite de celui-ci. 
+La reproduction totale ou partielle d’un article, sans l’autorisation écrite et préalable du Monde, est strictement interdite. 
+Pour plus d’informations, consultez nos conditions générales de vente. 
+Pour toute demande d’autorisation, contactez syndication@lemonde.fr. 
+En tant qu’abonné, vous pouvez offrir jusqu’à cinq articles par mois à l’un de vos proches grâce à la fonctionnalité « Offrir un article ». 
+
+https://www.lemonde.fr/planete/article/2025/10/16/une-carte-interactive-inedite-permet-de-connaitre-les-polluants-presents-dans-l-eau-potable-distribuee-a-chaque-adresse_6647091_3244.html
+
+Perchlorate, pesticides et leurs produits de dégradation (métabolites), polluants éternels (PFAS pour per- et polyfluoroalkylées), nitrates ou chlorure de vinyle monomère (CVM) : les Français ne connaissent pas l’état de l’eau potable qu’ils consomment, même si ces polluants sont surveillés par les autorités. La France a été mise en demeure par la Commission européenne, en juillet, de fournir au public « les informations obligatoires » sur la qualité de l’eau du robinet, mais à défaut d’action de l’Etat, ce sont Générations futures et Data for Good qui ont accompli cette tâche. Les deux associations ont réalisé un important travail de collection et d’agrégation des données officielles et publient sur un site dédié, jeudi 16 octobre, une carte interactive permettant de rechercher, pour chaque adresse postale, l’état de contamination de l’eau distribuée.
+
+La carte identifie, pour chaque type de polluant, les zones où les seuils de qualité ou les seuils de sécurité sanitaire ont été dépassés au cours des cinq dernières années, ainsi que par des dernières analyses conduites dans le cadre du contrôle sanitaire officiel. Chaque contaminant est soumis à un système de seuils qui lui est propre. Le dépassement des seuils de qualité, des valeurs réglementaires de précaution censées exclure les risques sanitaires, n’entraîne pas nécessairement d’effets délétères, tandis que le franchissement des seuils sanitaires – souvent bien plus élevés – indique un risque potentiel en cas d’exposition chronique.
+
+Moyennant une dérogation octroyée par le préfet, une collectivité peut distribuer une eau non conforme aux critères de qualité pendant une durée de trois ans. Cette période est reconductible une seule fois : au terme de six années, les contaminants de l’eau doivent revenir dans le giron réglementaire. 
+
+Quelles associations sont à l’origine de la création de la carte interactive sur la qualité de l’eau potable en France ?
+
+Que permet de connaître la carte interactive publiée par Générations futures et Data for Good pour chaque adresse postale ?
+
+Quelle est la durée maximale pendant laquelle une collectivité peut distribuer une eau non conforme grâce à une dérogation préfectorale ?

@@ -4,7 +4,7 @@ set -euo pipefail
 # ========== Paramètres utilisateur ==========
 PORT=5001
 HOST="0.0.0.0"
-MODEL_FILE="phi-4-Q5_K_M.gguf"
+MODEL_FILE="phi-4-Q4_K_M.gguf"
 RUNS=5
 
 KOBOLD_CMD=(koboldcpp "$MODEL_FILE" "$PORT"

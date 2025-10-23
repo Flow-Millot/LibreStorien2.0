@@ -4,15 +4,15 @@ set -euo pipefail
 # ========== Paramètres utilisateur ==========
 PORT=5001
 HOST="0.0.0.0"
-MODEL_FILE="phi-4-Q8_0.gguf"
+MODEL_FILE="phi-4-Q5_K_M.gguf"
 RUNS=5
 
 KOBOLD_CMD=(koboldcpp "$MODEL_FILE" "$PORT"
   --host "$HOST"
   --threads "$(sysctl -n hw.ncpu)"
   --usemmap
-  --gpulayers 28
-  --contextsize 12000
+  --gpulayers 999
+  --contextsize 16384
   --quantkv 1
 )
 

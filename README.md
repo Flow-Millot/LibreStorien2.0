@@ -24,7 +24,7 @@ Puis
 python -m llama_cpp.server \
   --model /absolute/path/to/your-model.gguf \
   --host 127.0.0.1 --port 10000 \
-  --n-gpu-layers 999 --ctx-size 8192
+  --n_gpu_layers 999 --n_ctx 8192
 
 ```
 

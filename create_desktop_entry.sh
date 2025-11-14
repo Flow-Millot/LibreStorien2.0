@@ -27,7 +27,7 @@ if [[ ! -f "$LAUNCH_SCRIPT" ]]; then
 fi
 
 # Nom de l’application
-read -rp "Nom de l'application (ex: LibreStorien2) : " APP_NAME
+read -rp "Nom de l'application (ex: LibreChat) : " APP_NAME
 
 # Conversion en minuscules pour nom fichier
 APP_FILE_NAME="${APP_NAME,,}"

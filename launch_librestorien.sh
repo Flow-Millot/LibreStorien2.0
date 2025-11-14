@@ -19,6 +19,8 @@ OPENWEBUI_PORT=8080
 
 # Modèle GGUF à utiliser
 MODEL_FILE="phi-4-Q4_K_M.gguf" # <-- POSSIBILITE D'ADAPTER LE NOM DU FICHIER
+HF_URL="https://huggingface.co/unsloth/phi-4-GGUF/resolve/main/${MODEL_FILE}" # <-- POSSIBILITE D'ADAPTER LE NOM DU FICHIER
+
 MODEL_PATH="models/${MODEL_FILE}" 
 
 # PIDs des services lancés par ce script
@@ -123,9 +125,50 @@ fi
 ########################################
 
 if [[ ! -f "$MODEL_PATH" ]]; then
-  echo "[ERREUR] Modèle introuvable : $MODEL_PATH"
-  echo "        Placer le fichier .gguf dans $PROJECT_DIR/models/ et mettre à jour MODEL_PATH dans le script."
-  exit 1
+  echo "[LibreStorien] Modèle introuvable localement, téléchargement depuis Hugging Face..."
+  mkdir -p "$(dirname "$MODEL_PATH")"
+
+  DL_TOOL=""
+
+  if command -v curl >/dev/null 2>&1; then
+    DL_TOOL="curl"
+  elif command -v wget >/dev/null 2>&1; then
+    DL_TOOL="wget"
+  else
+    echo "[LibreStorien] Ni curl ni wget détecté, tentative d'installation..."
+
+    if command -v apt >/dev/null 2>&1; then
+      sudo apt update
+      sudo apt install -y curl
+      DL_TOOL="curl"
+    elif command -v dnf >/dev/null 2>&1; then
+      sudo dnf install -y curl
+      DL_TOOL="curl"
+    elif command -v pacman >/dev/null 2>&1; then
+      sudo pacman -Sy --noconfirm curl
+      DL_TOOL="curl"
+    elif command -v brew >/dev/null 2>&1; then
+      brew install curl
+      DL_TOOL="curl"
+    else
+      echo "[ERREUR] Impossible d'installer curl/wget automatiquement. Installer l’un des deux puis relancer."
+      exit 1
+    fi
+  fi
+
+  echo "[LibreStorien] Téléchargement du modèle depuis : $HF_URL"
+  if [[ "$DL_TOOL" == "curl" ]]; then
+    curl -L "$HF_URL" -o "$MODEL_PATH"
+  else
+    wget -O "$MODEL_PATH" "$HF_URL"
+  fi
+
+  if [[ ! -f "$MODEL_PATH" ]]; then
+    echo "[ERREUR] Échec du téléchargement du modèle depuis $HF_URL"
+    exit 1
+  fi
+
+  echo "[LibreStorien] Modèle téléchargé : $MODEL_PATH"
 fi
 
 # On vérifie si un serveur llama.cpp tourne déjà sur le port défini

@@ -1,9 +1,26 @@
 # LibreStorien2.0 - Guide pour installer le projet
 
-## Télécharger le modèle
-https://huggingface.co/unsloth/phi-4-GGUF/tree/main
+# Lancement automatique:
+1. Rendre le script executable :
 
-A déposer dans le folder /models et renommer dans le fichier `launcher_librestorien.sh`
+```bash
+chmod +x ~/launch_librestorien.sh
+```
+
+2. Lancer le fichier `launcher_librestorien.sh`
+
+```bash
+bash launcher_librestorien.sh
+```
+
+Toutes les étapes suivantes de ce README sont executées automatiquement par le script.
+
+---
+
+# Installation manuelle
+
+## Télécharger le modèle
+https://huggingface.co/unsloth/phi-4-GGUF/resolve/main/phi-4-Q4_K_M.gguf
 
 ## Installer OpenWeb Ui
 Nous mettons à disposition le lien pour installer l'app car l'installation multiplateforme y est détaillée.

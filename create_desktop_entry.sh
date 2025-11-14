@@ -22,7 +22,7 @@ ICON_FILE="$SCRIPT_DIR/icon.jpeg"
 if [[ ! -f "$LAUNCH_SCRIPT" ]]; then
     echo "[ERREUR] Le script de lancement est introuvable :"
     echo "         $LAUNCH_SCRIPT"
-    echo "Place ton launch_librestorien.sh dans le même dossier que ce script."
+    echo "Placer ce script dans le même dossier que launch_librestorien.sh et icon.jpeg"
     exit 1
 fi
 

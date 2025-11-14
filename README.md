@@ -1,5 +1,10 @@
 # LibreStorien2.0 - Guide pour installer le projet
 
+## Télécharger le modèle
+https://huggingface.co/unsloth/phi-4-GGUF/tree/main
+
+A déposer dans le folder /models et renommer dans le fichier `launcher_librestorien.sh`
+
 ## Installer OpenWeb Ui
 Nous mettons à disposition le lien pour installer l'app car l'installation multiplateforme y est détaillée.
 

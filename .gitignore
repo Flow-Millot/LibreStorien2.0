@@ -1,2 +1,5 @@
-/venv
+/.venv
 .webui_secret_key
+*.gguf
+log_llamacpp.txt
+log_openwebui.txt

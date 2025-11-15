@@ -27,6 +27,11 @@ MODEL_PATH="models/${MODEL_FILE}"
 LLAMA_PID=""
 OPENWEBUI_PID=""
 
+##############################
+# Fonctions utilitaires      #
+##############################
+
+# Fonction de nettoyage à la fin
 cleanup() {
   echo "[LibreStorien] Arrêt des services..."
 
@@ -42,10 +47,8 @@ cleanup() {
     fi
   fi
 }
-
 # Nettoyage quand le script se termine ou lors d'un Ctrl+C
 trap cleanup EXIT INT TERM
-
 
 ################################
 # Vérification / installation de Python 3.11
@@ -203,6 +206,7 @@ else
     ENABLE_OPENAI_API="True" \
     ENABLE_OLLAMA_API="False" \
     ENABLE_PERSISTENT_CONFIG="False" \
+    ENABLE_WEB_SEARCH="False" \
     OPENAI_API_BASE_URL="http://127.0.0.1:${LLAMA_PORT}/v1" \
     open-webui serve \
         --host 0.0.0.0 \
@@ -213,7 +217,6 @@ else
     echo "[LibreStorien] OpenWebUI lancé (PID $OPENWEBUI_PID)."
     sleep 5
 fi
-
 
 ########################################
 # 4. Ouvrir le navigateur              #

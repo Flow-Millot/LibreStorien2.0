@@ -1,6 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+################################
+# Couleurs console ANSI
+################################
+RED="\033[0;31m"
+GREEN="\033[0;32m"
+YELLOW="\033[1;33m"
+CYAN="\033[0;36m"
+RESET="\033[0m"
+
 #############################
 # Configuration du projet   #
 #############################
@@ -31,19 +40,31 @@ OPENWEBUI_PID=""
 # Fonctions utilitaires      #
 ##############################
 
+# Fonctions d’affichage coloré
+info()    { echo -e "${CYAN}$*${RESET}"; }
+success() { echo -e "${GREEN}$*${RESET}"; }
+warn()    { echo -e "${YELLOW}$*${RESET}"; }
+error()   { echo -e "${RED}$*${RESET}" >&2; }
+
+# Fonction de mise à jour des dépendances Python
+update_python_deps() {
+  info "[LibreStorien] Mise à jour des dépendances Python (llama-cpp-python[server], open-webui)..."
+  python -m pip install --upgrade "llama-cpp-python[server]" open-webui
+}
+
 # Fonction de nettoyage à la fin
 cleanup() {
-  echo "[LibreStorien] Arrêt des services..."
+  info "[LibreStorien] Arrêt des services..."
 
   if [[ -n "${LLAMA_PID:-}" ]]; then
     if kill "$LLAMA_PID" >/dev/null 2>&1; then
-      echo "[LibreStorien] llama_cpp.server arrêté (PID $LLAMA_PID)."
+      success "[LibreStorien] llama_cpp.server arrêté (PID $LLAMA_PID)."
     fi
   fi
 
   if [[ -n "${OPENWEBUI_PID:-}" ]]; then
     if kill "$OPENWEBUI_PID" >/dev/null 2>&1; then
-      echo "[LibreStorien] OpenWebUI arrêté (PID $OPENWEBUI_PID)."
+      success "[LibreStorien] OpenWebUI arrêté (PID $OPENWEBUI_PID)."
     fi
   fi
 }
@@ -57,7 +78,7 @@ trap cleanup EXIT INT TERM
 PYTHON_BIN="python3.11"
 
 if ! command -v "$PYTHON_BIN" >/dev/null 2>&1; then
-    echo "[LibreStorien] python3.11 introuvable. Tentative d'installation..."
+    warn "[LibreStorien] python3.11 introuvable. Tentative d'installation..."
 
     # --- Ubuntu / Debian ---
     if command -v apt >/dev/null 2>&1; then
@@ -81,54 +102,45 @@ if ! command -v "$PYTHON_BIN" >/dev/null 2>&1; then
         brew link python@3.11 --force
 
     else
-        echo "[ERREUR] Impossible d'installer python3.11 automatiquement (OS non détecté)."
-        echo "Installe python3.11 manuellement puis relance."
+        error "[ERREUR] Impossible d'installer python3.11 automatiquement (OS non détecté)."
+        info "Installe python3.11 manuellement puis relance."
         exit 1
     fi
 
     # Re-vérifier
     if ! command -v "$PYTHON_BIN" >/dev/null 2>&1; then
-        echo "[ERREUR] python3.11 n'a pas pu être installé."
+        error "[ERREUR] python3.11 n'a pas pu être installé."
         exit 1
     fi
 fi
 
-echo "[LibreStorien] python3.11 disponible : $(which python3.11)"
+info "[LibreStorien] python3.11 disponible : $(which python3.11)"
 
 ################################
 # 1. Création / activation venv #
 ################################
 
 if [[ ! -d "$VENV_DIR" ]]; then
-  echo "[LibreStorien] Création de la venv Python avec $PYTHON_BIN..."
+  info "[LibreStorien] Création de la venv Python avec $PYTHON_BIN..."
   "$PYTHON_BIN" -m venv "$VENV_DIR"
-  source "$VENV_DIR/bin/activate"
-  python -m pip install --upgrade pip
-
-  echo "[LibreStorien] Installation des dépendances..."
-  python -m pip install "llama-cpp-python[server]" open-webui
-else
-  echo "[LibreStorien] Activation de la venv existante..."
-  source "$VENV_DIR/bin/activate"
-
-  # Vérif rapide que les paquets sont là (sinon installation)
-  if ! python -c "import llama_cpp" >/dev/null 2>&1; then
-    echo "[LibreStorien] Installation de llama-cpp-python[server]..."
-    python -m pip install "llama-cpp-python[server]"
-  fi
-
-  if ! command -v open-webui >/dev/null 2>&1; then
-    echo "[LibreStorien] Installation de open-webui..."
-    python -m pip install open-webui
-  fi
 fi
+
+info "[LibreStorien] Activation de la venv existante..."
+# shellcheck disable=SC1090
+source "$VENV_DIR/bin/activate"
+
+info "[LibreStorien] Mise à jour de pip..."
+python -m pip install --upgrade pip
+
+# Mise à jour systématique des libs utilisées
+update_python_deps
 
 ########################################
 # 2. Lancer le serveur llama.cpp       #
 ########################################
 
 if [[ ! -f "$MODEL_PATH" ]]; then
-  echo "[LibreStorien] Modèle introuvable localement, téléchargement depuis Hugging Face..."
+  warn "[LibreStorien] Modèle introuvable localement, téléchargement depuis Hugging Face..."
   mkdir -p "$(dirname "$MODEL_PATH")"
 
   DL_TOOL=""
@@ -138,7 +150,7 @@ if [[ ! -f "$MODEL_PATH" ]]; then
   elif command -v wget >/dev/null 2>&1; then
     DL_TOOL="wget"
   else
-    echo "[LibreStorien] Ni curl ni wget détecté, tentative d'installation..."
+    warn "[LibreStorien] Ni curl ni wget détecté, tentative d'installation..."
 
     if command -v apt >/dev/null 2>&1; then
       sudo apt update
@@ -154,12 +166,12 @@ if [[ ! -f "$MODEL_PATH" ]]; then
       brew install curl
       DL_TOOL="curl"
     else
-      echo "[ERREUR] Impossible d'installer curl/wget automatiquement. Installer l’un des deux puis relancer."
+      error "[ERREUR] Impossible d'installer curl/wget automatiquement. Installer l’un des deux puis relancer."
       exit 1
     fi
   fi
 
-  echo "[LibreStorien] Téléchargement du modèle depuis : $HF_URL"
+  info "[LibreStorien] Téléchargement du modèle depuis : $HF_URL"
   if [[ "$DL_TOOL" == "curl" ]]; then
     curl -L "$HF_URL" -o "$MODEL_PATH"
   else
@@ -167,18 +179,18 @@ if [[ ! -f "$MODEL_PATH" ]]; then
   fi
 
   if [[ ! -f "$MODEL_PATH" ]]; then
-    echo "[ERREUR] Échec du téléchargement du modèle depuis $HF_URL"
+    error "[ERREUR] Échec du téléchargement du modèle depuis $HF_URL"
     exit 1
   fi
 
-  echo "[LibreStorien] Modèle téléchargé : $MODEL_PATH"
+  info "[LibreStorien] Modèle téléchargé : $MODEL_PATH"
 fi
 
 # On vérifie si un serveur llama.cpp tourne déjà sur le port défini
 if pgrep -f "llama_cpp.server" >/dev/null 2>&1; then
-  echo "[LibreStorien] llama_cpp.server est déjà en cours d’exécution."
+  info "[LibreStorien] llama_cpp.server est déjà en cours d’exécution."
 else
-    echo "[LibreStorien] Lancement de llama_cpp.server..."
+    info "[LibreStorien] Lancement de llama_cpp.server..."
     cd "$PROJECT_DIR"
     python -m llama_cpp.server \
         --model "$MODEL_PATH" \
@@ -189,7 +201,7 @@ else
         > "$PROJECT_DIR/log_llamacpp.txt" 2>&1 &
 
     LLAMA_PID=$!
-    echo "[LibreStorien] llama_cpp.server lancé (PID $LLAMA_PID)."
+    success "[LibreStorien] llama_cpp.server lancé (PID $LLAMA_PID)."
     sleep 3
 fi
 
@@ -199,9 +211,9 @@ fi
 
 # Vérifie si OpenWebUI tourne déjà
 if pgrep -f "open-webui" >/dev/null 2>&1; then
-  echo "[LibreStorien] OpenWebUI est déjà en cours d’exécution."
+  info "[LibreStorien] OpenWebUI est déjà en cours d’exécution."
 else
-    echo "[LibreStorien] Lancement de OpenWebUI..."
+    info "[LibreStorien] Lancement de OpenWebUI..."
     
     ENABLE_OPENAI_API="True" \
     ENABLE_OLLAMA_API="False" \
@@ -214,7 +226,7 @@ else
         > "$PROJECT_DIR/log_openwebui.txt" 2>&1 &
 
     OPENWEBUI_PID=$!
-    echo "[LibreStorien] OpenWebUI lancé (PID $OPENWEBUI_PID)."
+    success "[LibreStorien] OpenWebUI lancé (PID $OPENWEBUI_PID)."
     sleep 5
 fi
 
@@ -224,7 +236,7 @@ fi
 
 URL="http://localhost:${OPENWEBUI_PORT}"
 
-echo "[LibreStorien] Ouverture de $URL dans le navigateur..."
+info "[LibreStorien] Ouverture de $URL dans le navigateur..."
 
 # Détection de la plateforme
 OS_NAME="$(uname -s)"
@@ -234,7 +246,7 @@ case "$OS_NAME" in
     if command -v xdg-open >/dev/null 2>&1; then
       xdg-open "$URL" >/dev/null 2>&1 &
     else
-      echo "[LibreStorien] xdg-open non trouvé. Ouvrir manuellement : $URL"
+      warn "[LibreStorien] xdg-open non trouvé. Ouvrir manuellement : $URL"
     fi
     ;;
   Darwin)
@@ -242,22 +254,22 @@ case "$OS_NAME" in
     if command -v open >/dev/null 2>&1; then
       open "$URL" >/dev/null 2>&1 &
     else
-      echo "[LibreStorien] La commande 'open' est introuvable. Ouvrir manuellement : $URL"
+      warn "[LibreStorien] La commande 'open' est introuvable. Ouvrir manuellement : $URL"
     fi
     ;;
   *)
-    echo "[LibreStorien] OS non reconnu ($OS_NAME). Ouvrir manuellement : $URL"
+    warn "[LibreStorien] OS non reconnu ($OS_NAME). Ouvrir manuellement : $URL"
     ;;
 esac
 
-echo "[LibreStorien] Lancement terminé."
+success "[LibreStorien] Lancement terminé."
 
 # Si on a lancé au moins un des services, on attend qu'ils se terminent
 if [[ -n "${LLAMA_PID:-}" || -n "${OPENWEBUI_PID:-}" ]]; then
-  echo "[LibreStorien] Les services s'arrêteront lors de la fermeture cette fenêtre ou grâce à Ctrl+C."
+  info "[LibreStorien] Les services s'arrêteront lors de la fermeture cette fenêtre ou grâce à Ctrl+C."
   # On attend les process lancés (ceci garde le script vivant)
   wait ${LLAMA_PID:-} ${OPENWEBUI_PID:-} 2>/dev/null || true
 else
-  echo "[LibreStorien] Les services étaient déjà en cours d’exécution avant ce script."
-  echo "[LibreStorien] Ce lanceur ne les arrêtera pas automatiquement."
+  warn "[LibreStorien] Les services étaient déjà en cours d’exécution avant ce script."
+  warn "[LibreStorien] Ce lanceur ne les arrêtera pas automatiquement."
 fi

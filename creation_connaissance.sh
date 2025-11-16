@@ -1,6 +1,25 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+################################
+# Couleurs console ANSI
+################################
+RED="\033[0;31m"
+GREEN="\033[0;32m"
+YELLOW="\033[1;33m"
+CYAN="\033[0;36m"
+RESET="\033[0m"
+
+##############################
+# Fonctions utilitaires      #
+##############################
+
+# Fonctions d’affichage coloré
+info()    { echo -e "${CYAN}$*${RESET}"; }
+success() { echo -e "${GREEN}$*${RESET}"; }
+warn()    { echo -e "${YELLOW}$*${RESET}"; }
+error()   { echo -e "${RED}$*${RESET}" >&2; }
+
 ########################################
 # 0. Configuration de base
 ########################################
@@ -20,21 +39,21 @@ OPENWEBUI_URL="${OPENWEBUI_URL:-$DEFAULT_OPENWEBUI_URL}"
 ########################################
 
 die() {
-  echo "[Erreur] $*" >&2
+  error "[Erreur] $*" >&2
   exit 1
 }
 
 detect_pkg_manager() {
   if command -v apt >/dev/null 2>&1; then
-    echo "apt"
+    info "apt"
   elif command -v dnf >/dev/null 2>&1; then
-    echo "dnf"
+    info "dnf"
   elif command -v pacman >/dev/null 2>&1; then
-    echo "pacman"
+    info "pacman"
   elif command -v brew >/dev/null 2>&1; then
-    echo "brew"
+    info "brew"
   else
-    echo ""
+    info ""
   fi
 }
 
@@ -46,7 +65,7 @@ ensure_cmd() {
     return 0
   fi
 
-  echo "[LibreStorien] Commande '$cmd' introuvable. Tentative d'installation du paquet '$pkg'..."
+  warn "[LibreStorien] Commande '$cmd' introuvable. Tentative d'installation du paquet '$pkg'..."
 
   local pm
   pm="$(detect_pkg_manager)"
@@ -84,7 +103,7 @@ ensure_cmd jq jq
 
 # Vérifier l'existence du dossier docs, le créer si besoin
 if [[ ! -d "$DOCS_DIR" ]]; then
-  echo "[LibreStorien] Le dossier docs/ n'existe pas encore. Création dans : $DOCS_DIR"
+  warn "[LibreStorien] Le dossier docs/ n'existe pas encore. Création dans : $DOCS_DIR"
   mkdir -p "$DOCS_DIR"
 fi
 
@@ -97,10 +116,10 @@ fi
 # 3. Lecture des paramètres utilisateur
 ########################################
 
-echo "[LibreStorien] Configuration de la connexion à OpenWebUI"
+info "[LibreStorien] Configuration de la connexion à OpenWebUI"
 
 if [[ -z "${OPENWEBUI_JWT:-}" ]]; then
-  echo "Tu peux récupérer ton JWT dans OpenWebUI : Réglages -> Compte -> Clés d'API -> Copier le JWT."
+  info "Tu peux récupérer ton JWT dans OpenWebUI : Réglages -> Compte -> Clés d'API -> Copier le JWT."
   read -r -p "JWT OpenWebUI (coller ici) : " OPENWEBUI_JWT
 fi
 
@@ -115,7 +134,7 @@ AUTH_HEADER="Authorization: Bearer $OPENWEBUI_JWT"
 ########################################
 
 echo
-echo "[LibreStorien] Vérification de la disponibilité de l'API OpenWebUI ($OPENWEBUI_URL)..."
+info "[LibreStorien] Vérification de la disponibilité de l'API OpenWebUI ($OPENWEBUI_URL)..."
 
 HEALTH_OK=false
 
@@ -139,7 +158,7 @@ for i in {1..10}; do
     break
   fi
 
-  echo "[LibreStorien] API non joignable (tentative $i/10). Nouvelle tentative dans 2 secondes..."
+  warn "[LibreStorien] API non joignable (tentative $i/10). Nouvelle tentative dans 2 secondes..."
   sleep 2
 done
 
@@ -147,7 +166,7 @@ if [[ "$HEALTH_OK" != true ]]; then
   die "Impossible de joindre l'API OpenWebUI. Vérifie que ton premier launcher tourne bien et que l'URL est correcte."
 fi
 
-echo "[LibreStorien] API disponible."
+success "[LibreStorien] API disponible."
 
 ########################################
 # 5. Création ou réutilisation de la Connaissance
@@ -157,7 +176,7 @@ read -r -p "[LibreStorien] Donner un nom à la nouvelle Connaissance (appuie sur
 KNOW_NAME="${USER_INPUT:-$KNOW_NAME}"
 
 echo
-echo "[LibreStorien] Vérification de l'existence de la Connaissance '$KNOW_NAME'..."
+info "[LibreStorien] Vérification de l'existence de la Connaissance '$KNOW_NAME'..."
 
 # Récupérer la liste des connaissances existantes
 knowledge_list_resp="$(curl -sS -H "$AUTH_HEADER" "$OPENWEBUI_URL/api/v1/knowledge/" || true)"
@@ -183,11 +202,11 @@ fi
 if (( ${#existing_ids[@]} > 0 )); then
   # Si on a trouvé au moins une connaissance avec ce nom, on prend la première
   KNOW_ID="${existing_ids[0]}"
-  echo "[LibreStorien] Connaissance '$KNOW_NAME' déjà existante."
-  echo "[LibreStorien] Arrêt du script."
+  warn "[LibreStorien] Connaissance '$KNOW_NAME' déjà existante."
+  info "[LibreStorien] Arrêt du script."
   exit 0
 else
-  echo "[LibreStorien] Aucune Connaissance existante avec ce nom. Création..."
+  info "[LibreStorien] Aucune Connaissance existante avec ce nom. Création..."
 
   create_payload="$(jq -n \
     --arg name "$KNOW_NAME" \
@@ -202,12 +221,12 @@ else
   KNOW_ID="$(echo "$resp" | jq -r '.id // .data.id // empty')"
 
   if [[ -z "$KNOW_ID" || "$KNOW_ID" == "null" ]]; then
-    echo "[LibreStorien] Réponse de l'API lors de la création de la Connaissance :"
+    info "[LibreStorien] Réponse de l'API lors de la création de la Connaissance :"
     echo "$resp"
     die "Impossible de récupérer l'ID de la Connaissance."
   fi
 
-  echo "[LibreStorien] Connaissance créée avec ID : $KNOW_ID"
+  success "[LibreStorien] Connaissance créée avec ID : $KNOW_ID"
 fi
 
 ########################################
@@ -215,7 +234,7 @@ fi
 ########################################
 
 echo
-echo "[LibreStorien] Upload des fichiers PDF depuis '$DOCS_DIR' et attachement à la Connaissance..."
+info "[LibreStorien] Upload des fichiers PDF depuis '$DOCS_DIR' et attachement à la Connaissance..."
 
 # Activer nullglob pour éviter que *.pdf se résolve littéralement en "*.pdf" si aucun fichier
 shopt -s nullglob
@@ -232,7 +251,7 @@ for FILE_PATH in "${pdf_files[@]}"; do
   fi
 
   FILE_NAME="$(basename "$FILE_PATH")"
-  echo "[LibreStorien] -> Upload du fichier : $FILE_NAME"
+  info "[LibreStorien] -> Upload du fichier : $FILE_NAME"
 
   upload_resp="$(curl -sS -X POST "$OPENWEBUI_URL/api/v1/files/" \
     -H "$AUTH_HEADER" \
@@ -241,13 +260,13 @@ for FILE_PATH in "${pdf_files[@]}"; do
   FILE_ID="$(echo "$upload_resp" | jq -r '.id // .data.id // empty')"
 
   if [[ -z "$FILE_ID" || "$FILE_ID" == "null" ]]; then
-    echo "[LibreStorien] Réponse de l'API lors de l'upload du fichier $FILE_NAME :"
+    info "[LibreStorien] Réponse de l'API lors de l'upload du fichier $FILE_NAME :"
     echo "$upload_resp"
     die "Impossible de récupérer l'ID du fichier."
   fi
 
-  echo "   Fichier uploadé avec ID : $FILE_ID"
-  echo "   Attachement du fichier à la Connaissance..."
+  success "   Fichier uploadé avec ID : $FILE_ID"
+  info "   Attachement du fichier à la Connaissance..."
 
   attach_payload="$(jq -n --arg file_id "$FILE_ID" '{file_id: $file_id}')"
 
@@ -261,7 +280,7 @@ for FILE_PATH in "${pdf_files[@]}"; do
     echo "   Réponse API (attachement) : $attach_ok"
   fi
 
-    echo "   Vérification de la fin du traitement du fichier..."
+    info "   Vérification de la fin du traitement du fichier..."
 
   # Boucle d’attente active : on surveille l’apparition du FILE_ID dans file_ids
   for i in {1..5}; do
@@ -277,11 +296,11 @@ for FILE_PATH in "${pdf_files[@]}"; do
     ')"
 
     if [[ -n "$is_indexed" ]]; then
-      echo "Le fichier est maintenant indexé."
+      success "   Le fichier est maintenant indexé."
       break
     fi
 
-    echo "Indexation en cours..."
+    warn "   Indexation en cours..."
     sleep 5
   done
 done
@@ -289,6 +308,6 @@ done
 # Désactiver nullglob si tu veux revenir au comportement par défaut
 shopt -u nullglob
 
-echo "[LibreStorien] Tous les fichiers du dossier docs/ ont été traités."
-echo "[LibreStorien] L'API d'OpenWebUI ne permet pas encore d'automatiser la création du modèle basé sur la Connaissance."
-echo "[LibreStorien] Merci de suivre le README associé pour l'étape suivante"
+success "[LibreStorien] Tous les fichiers du dossier docs/ ont été traités."
+info "[LibreStorien] L'API d'OpenWebUI ne permet pas encore d'automatiser la création du modèle basé sur la Connaissance."
+warn "[LibreStorien] Merci de suivre le README associé pour l'étape suivante"

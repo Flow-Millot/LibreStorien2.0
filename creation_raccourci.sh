@@ -1,6 +1,24 @@
 #!/usr/bin/env bash
 
-echo "=== Création automatique d’un fichier .desktop ==="
+################################
+# Couleurs console ANSI
+################################
+RED="\033[0;31m"
+GREEN="\033[0;32m"
+YELLOW="\033[1;33m"
+CYAN="\033[0;36m"
+RESET="\033[0m"
+
+##############################
+# Fonctions utilitaires      #
+##############################
+
+# Fonctions d’affichage coloré
+info()    { echo -e "${CYAN}$*${RESET}"; }
+success() { echo -e "${GREEN}$*${RESET}"; }
+error()   { echo -e "${RED}$*${RESET}" >&2; }
+
+info "[LibreStorien] Création automatique d’un fichier .desktop"
 
 ###############################
 # Détection des chemins locaux
@@ -20,9 +38,9 @@ ICON_FILE="$SCRIPT_DIR/icon.jpeg"
 ###############################
 
 if [[ ! -f "$LAUNCH_SCRIPT" ]]; then
-    echo "[ERREUR] Le script de lancement est introuvable :"
-    echo "         $LAUNCH_SCRIPT"
-    echo "Placer ce script dans le même dossier que launch_librestorien.sh et icon.jpeg"
+    error "[ERREUR] Le script de lancement est introuvable :"
+    error "         $LAUNCH_SCRIPT"
+    error "Placer ce script dans le même dossier que launch_librestorien.sh et icon.jpeg"
     exit 1
 fi
 
@@ -46,7 +64,7 @@ DESKTOP_FILE="$DESKTOP_DIR/${APP_FILE_NAME}.desktop"
 # Création du .desktop
 ###############################
 
-echo "Création du fichier : $DESKTOP_FILE"
+info "[LibreStorien] Création du fichier : $DESKTOP_FILE"
 
 {
 echo "[Desktop Entry]"
@@ -74,9 +92,9 @@ if [[ -d "$HOME/Bureau" ]]; then
 elif [[ -d "$HOME/Desktop" ]]; then
     USER_DESKTOP="$HOME/Desktop"
 else
-    # Si aucun dossier n'existe, on en crée un
-    USER_DESKTOP="$HOME/Desktop"
-    mkdir -p "$USER_DESKTOP"
+    # Si aucun dossier n'existe
+    error "[ERREUR] Impossible de trouver le dossier Bureau/Desktop dans votre répertoire personnel."
+    exit 1
 fi
 
 cp "$DESKTOP_FILE" "$USER_DESKTOP/"
@@ -84,12 +102,12 @@ cp "$DESKTOP_FILE" "$USER_DESKTOP/"
 # Rendre le raccourci du bureau exécutable
 chmod +x "$USER_DESKTOP/${APP_FILE_NAME}.desktop"
 
-echo "Copié sur le bureau : $USER_DESKTOP/${APP_FILE_NAME}.desktop"
+info "[LibreStorien] Copié sur le bureau : $USER_DESKTOP/${APP_FILE_NAME}.desktop"
 
 ###############################
 # Résultat final
 ###############################
 
-echo "Fichier .desktop créé avec succès !"
-echo "Menu applications : $DESKTOP_FILE"
-echo "Raccourci sur le bureau : $USER_DESKTOP/${APP_FILE_NAME}.desktop"
+success "[LibreStorien] Fichier .desktop créé avec succès !"
+info "[LibreStorien] Menu applications : $DESKTOP_FILE"
+info "[LibreStorien] Raccourci sur le bureau : $USER_DESKTOP/${APP_FILE_NAME}.desktop"

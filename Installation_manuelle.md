@@ -1,21 +1,4 @@
-# LibreStorien2.0 - Guide pour installer le projet
-
-# Lancement automatique:
-1. Rendre le script executable :
-
-```bash
-chmod +x ~/launch_librestorien.sh
-```
-
-2. Lancer le fichier `launcher_librestorien.sh`
-
-```bash
-bash launcher_librestorien.sh
-```
-
-Toutes les étapes suivantes de ce README sont executées automatiquement par le script.
-
----
+# LibreStorien2.0 - Guide pour installer l'environnement manuellement
 
 # Installation manuelle
 

@@ -153,25 +153,39 @@ echo "[LibreStorien] API disponible."
 # 5. Création ou réutilisation de la Connaissance
 ########################################
 
+read -r -p "[LibreStorien] Donner un nom à la nouvelle Connaissance (appuie sur Entrée pour utiliser '$KNOW_NAME') : " USER_INPUT
+KNOW_NAME="${USER_INPUT:-$KNOW_NAME}"
+
 echo
 echo "[LibreStorien] Vérification de l'existence de la Connaissance '$KNOW_NAME'..."
 
 # Récupérer la liste des connaissances existantes
-knowledge_list_resp="$(curl -sS -H "$AUTH_HEADER" "$OPENWEBUI_URL/api/v1/knowledge" || true)"
+knowledge_list_resp="$(curl -sS -H "$AUTH_HEADER" "$OPENWEBUI_URL/api/v1/knowledge/" || true)"
 
 existing_ids=()
 if [[ -n "$knowledge_list_resp" ]]; then
-  # On extrait les connaissances dont le nom correspond exactement
+  # On extrait les connaissances dont le nom correspond exactement,
+  # en gérant à la fois le cas tableau et le cas { "data": [ ... ] }
   mapfile -t existing_ids < <(
     echo "$knowledge_list_resp" \
-      | jq -r --arg name "$KNOW_NAME" '.[]? | select(.name == $name) | .id'
+      | jq -r --arg name "$KNOW_NAME" '
+          if type == "array" then
+            .[]? | select(.name == $name) | .id
+          elif .data then
+            .data[]? | select(.name == $name) | .id
+          else
+            empty
+          end
+        '
   )
 fi
 
 if (( ${#existing_ids[@]} > 0 )); then
   # Si on a trouvé au moins une connaissance avec ce nom, on prend la première
   KNOW_ID="${existing_ids[0]}"
-  echo "[LibreStorien] Connaissance '$KNOW_NAME' déjà existante. ID réutilisé : $KNOW_ID"
+  echo "[LibreStorien] Connaissance '$KNOW_NAME' déjà existante."
+  echo "[LibreStorien] Arrêt du script."
+  exit 0
 else
   echo "[LibreStorien] Aucune Connaissance existante avec ce nom. Création..."
 
@@ -247,9 +261,29 @@ for FILE_PATH in "${pdf_files[@]}"; do
     echo "   Réponse API (attachement) : $attach_ok"
   fi
 
-  # Attente pour laisser à OpenWebUI le temps de traiter/indexer le fichier
-  echo "   Attente de la fin du traitement avant le prochain fichier..."
-  sleep 5
+    echo "   Vérification de la fin du traitement du fichier..."
+
+  # Boucle d’attente active : on surveille l’apparition du FILE_ID dans file_ids
+  for i in {1..5}; do
+    check_resp="$(curl -sS -H "$AUTH_HEADER" "$OPENWEBUI_URL/api/v1/knowledge/$KNOW_ID")"
+
+    # On vérifie si le FILE_ID est présent dans la liste des fichiers indexés
+    is_indexed="$(echo "$check_resp" | jq -r --arg fid "$FILE_ID" '
+      if .data and .data.file_ids then
+        (.data.file_ids[] | select(. == $fid)) // empty
+      else
+        empty
+      end
+    ')"
+
+    if [[ -n "$is_indexed" ]]; then
+      echo "Le fichier est maintenant indexé."
+      break
+    fi
+
+    echo "Indexation en cours..."
+    sleep 5
+  done
 done
 
 # Désactiver nullglob si tu veux revenir au comportement par défaut

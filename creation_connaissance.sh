@@ -66,7 +66,7 @@ ensure_cmd() {
       brew install "$pkg"
       ;;
     *)
-      die "Impossible d'installer automatiquement '$pkg'. Installe-le manuellement puis relance."
+      die "Impossible d'installer automatiquement '$pkg'. Installer manuellement puis relancer."
       ;;
   esac
 
@@ -90,7 +90,7 @@ fi
 
 # Vérifier qu'il contient bien des fichiers
 if ! ls "$DOCS_DIR"/* >/dev/null 2>&1; then
-  die "Le dossier docs/ est vide ($DOCS_DIR). Ajoute-y les documents à indexer avant de lancer ce script."
+  die "Le dossier docs/ est vide ($DOCS_DIR). Ajouter les documents à indexer avant de lancer ce script."
 fi
 
 ########################################

@@ -10,7 +10,7 @@ echo "=== Création automatique d’un fichier .desktop ==="
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Script de lancement attendu
-LAUNCH_SCRIPT="$SCRIPT_DIR/launch_librestorien.sh"
+LAUNCH_SCRIPT="$SCRIPT_DIR/launcher.sh"
 
 # Icône optionnelle
 ICON_FILE="$SCRIPT_DIR/icon.jpeg"

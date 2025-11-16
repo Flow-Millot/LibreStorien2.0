@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+export DEFAULT_LOCALE="fr-FR"
+
 #############################
 # Configuration du projet   #
 #############################

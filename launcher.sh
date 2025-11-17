@@ -103,7 +103,7 @@ if ! command -v "$PYTHON_BIN" >/dev/null 2>&1; then
 
     else
         error "[ERREUR] Impossible d'installer python3.11 automatiquement (OS non détecté)."
-        info "Installe python3.11 manuellement puis relance."
+        warn "Installe python3.11 manuellement puis relance."
         exit 1
     fi
 
@@ -115,6 +115,22 @@ if ! command -v "$PYTHON_BIN" >/dev/null 2>&1; then
 fi
 
 info "[LibreStorien] python3.11 disponible : $(which python3.11)"
+
+##############################################
+# Dépendances système pour llama-cpp (Ubuntu)
+##############################################
+
+if command -v apt >/dev/null 2>&1; then
+  info "[LibreStorien] Vérification des dépendances système pour llama-cpp (build-essential, cmake, python3.11-dev)..."
+
+  if ! dpkg -s build-essential cmake python3.11-dev >/dev/null 2>&1; then
+    info "[LibreStorien] Installation des dépendances système nécessaires à llama-cpp..."
+    sudo apt update
+    sudo apt install -y build-essential cmake python3.11-dev
+  else
+    info "[LibreStorien] Dépendances système déjà installées."
+  fi
+fi
 
 ################################
 # 1. Création / activation venv #
@@ -138,6 +154,15 @@ update_python_deps
 ########################################
 # 2. Lancer le serveur llama.cpp       #
 ########################################
+
+# Dossier contenant les modèles (dérivé de MODEL_PATH)
+MODELS_DIR="$(dirname "$MODEL_PATH")"
+
+# S'assurer que le dossier des modèles existe
+if [[ ! -d "$MODELS_DIR" ]]; then
+  info "[LibreStorien] Dossier des modèles introuvable, création : $MODELS_DIR"
+  mkdir -p "$MODELS_DIR"
+fi
 
 if [[ ! -f "$MODEL_PATH" ]]; then
   warn "[LibreStorien] Modèle introuvable localement, téléchargement depuis Hugging Face..."

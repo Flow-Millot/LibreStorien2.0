@@ -23,24 +23,30 @@ Ce projet inclut un launcher complet qui permet de démarrer l’environnement s
 - Fedora
 - Arch Linux
 - macOs (Homebrew)
+- Windows depuis WSL2
 
 Ce launcher a un objectif principal :
 
 **démarrer automatiquement l’environnement IA libre et local LibreStorien** :
 
+```bash
+bash launcher.sh
+```
+
 * Vérifie ou installe Python 3.11 (version compatible avec OpenWeb Ui)
 * Crée la venv
 * Installe `llama-cpp-python[server]` et `open-webui`
-* Télécharge le modèle si nécessaire (phi-4-Q4_K_M.gguf par défaut)
+* Télécharge le modèle si nécessaire (phi-4-Q4_K_M.gguf par défaut, changer le nom dans le script si nécessaire)
 * Lance le serveur llama.cpp [http://127.0.0.1:10000](http://127.0.0.1:10000)
 * Lance OpenWebUI [http://127.0.0.1:8080](http://127.0.0.1:8080)
 * Ouvre automatiquement l'UI dans le navigateur
+* Attendre quelques instants pour voir apparaitre l'interface (le temps que tous les services soient up)
 
 ### Services lancés
 
 | Service          | Port      | Fonction                                          |
 | ---------------- | --------- | ------------------------------------------------- |
-| llama_cpp.server | **10000** | API OpenAI-compatible servie par le modèle GGUF   |
+| llama_cpp.server | **10000** | Inférance OpenAI-compatible servie par le modèle GGUF   |
 | OpenWebUI        | **8080**  | Interface utilisateur, gestion RAG, knowledge, UI |
 
 ### Lire les logs
@@ -57,14 +63,24 @@ Il tue proprement les processus lancés et vide la RAM du modèle chargé.
 
 # 2. Configuration Knowledge + Assistant LibreStorien
 
-## Script d’installation : `creation_connaissance.sh`
+## Installation manuelle simple
+
+Une fois l'interface lancée, aller dans :
+
+Espace de travail -> Connaissance -> Créer une connaissance
+
+Et déposer tous les fichiers **pdf** voulus dans cette espace. Le modèle s'appuiera sur ces documents pour répondre.
+
+## Installation automatique avec : `creation_connaissance.sh`
+
+### Attention : il est possible que certains fichiers ne se charge pas correctement (taille, vitesse de téléchargement, etc). Vérifier après lancement
 
 Ce projet permet de configurer automatiquement un environnement RAG (« Retrieval Augmented Generation ») dans OpenWebUI afin de créer un assistant strictement basé sur les documents chargés.
 
 Le script `creation_connaissance.sh` :
 
 * crée ou réutilise une *Connaissance* OpenWebUI,
-* upload et indexe automatiquement tous les fichiers PDF présents dans `/docs` (OpenWeb Ui ne prends pas encore en cahrge les fichiers .docx ou .odt),
+* upload et indexe automatiquement tous les fichiers PDF présents dans `/docs` (OpenWeb Ui ne prends pas encore en charge les fichiers .docx ou .odt),
 
 ---
 

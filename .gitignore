@@ -1,6 +1,8 @@
 /.venv
 .webui_secret_key
+.openwebui_api_key
 *.gguf
 log_llamacpp.txt
 log_openwebui.txt
 .DS_Store
+/docs/*

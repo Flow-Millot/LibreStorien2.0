@@ -334,12 +334,31 @@ OS_NAME="$(uname -s)"
 
 case "$OS_NAME" in
   Linux)
+    # Vérification si xdg-open est présent
+    if ! command -v xdg-open >/dev/null 2>&1; then
+      warn "[LibreStorien] La commande 'xdg-open' est introuvable. Tentative d'installation..."
+
+      # Installation selon le gestionnaire de paquets
+      if command -v apt >/dev/null 2>&1; then
+        sudo apt update
+        sudo apt install -y xdg-utils
+      elif command -v dnf >/dev/null 2>&1; then
+        sudo dnf install -y xdg-utils
+      elif command -v pacman >/dev/null 2>&1; then
+        sudo pacman -Sy --noconfirm xdg-utils
+      else
+        error "[ERREUR] Impossible d'installer xdg-utils automatiquement."
+      fi
+    fi
+
+    # Tentative d'ouverture après installation potentielle
     if command -v xdg-open >/dev/null 2>&1; then
       xdg-open "$URL" >/dev/null 2>&1 &
     else
-      warn "[LibreStorien] xdg-open non trouvé. Ouvrir manuellement : $URL"
+      warn "[LibreStorien] xdg-open non disponible. Ouvrir manuellement : $URL"
     fi
     ;;
+
   Darwin)
     # macOS
     if command -v open >/dev/null 2>&1; then
@@ -348,6 +367,7 @@ case "$OS_NAME" in
       warn "[LibreStorien] La commande 'open' est introuvable. Ouvrir manuellement : $URL"
     fi
     ;;
+    
   *)
     warn "[LibreStorien] OS non reconnu ($OS_NAME). Ouvrir manuellement : $URL"
     ;;

@@ -52,22 +52,64 @@ update_python_deps() {
   python -m pip install --upgrade "llama-cpp-python[server]" open-webui
 }
 
-# Fonction de détection et configuration GPU (Nvidia/CUDA)
+# Fonction de détection, installation et configuration GPU (Nvidia/CUDA)
 configure_gpu_support() {
-  info "[LibreStorien] Vérification de la présence d'un GPU Nvidia..."
+  info "[LibreStorien] Vérification de la configuration GPU..."
 
-  # On vérifie si nvidia-smi est disponible et fonctionne
+  # 1. Vérification matérielle : Est-ce qu'une carte Nvidia est physiquement là ?
   if command -v nvidia-smi >/dev/null 2>&1 && nvidia-smi >/dev/null 2>&1; then
-    success "[SUCCÈS] GPU Nvidia détecté. Activation du support CUDA."
     
-    # Ces variables forcent la compilation avec CUDA lors des pip install / upgrade
-    export CMAKE_ARGS="-DGGML_CUDA=on"
-    export FORCE_CMAKE=1
+    # 2. Vérification logicielle : Est-ce que le compilateur CUDA (nvcc) est présent ?
+    if ! command -v nvcc >/dev/null 2>&1; then
+      warn "[ATTENTION] GPU Nvidia détecté, mais le 'CUDA Toolkit' (nvcc) est introuvable."
+      info "[LibreStorien] Tentative d'installation automatique du CUDA Toolkit..."
+
+      # --- Tentative d'installation selon l'OS ---
+      if command -v apt >/dev/null 2>&1; then
+        # Ubuntu / Debian / Mint
+        sudo apt update
+        # nvidia-cuda-toolkit est le paquet standard sur Debian/Ubuntu
+        sudo apt install -y nvidia-cuda-toolkit gcc g++
+
+      elif command -v dnf >/dev/null 2>&1; then
+        # Fedora / RHEL
+        # Note : Sur Fedora, cela suppose que les repos proprios sont activés
+        sudo dnf install -y cudatoolkit
+
+      elif command -v pacman >/dev/null 2>&1; then
+        # Arch Linux / Manjaro
+        sudo pacman -Sy --noconfirm cuda
+
+      else
+        error "[ERREUR] Impossible d'installer le CUDA Toolkit automatiquement (OS non géré)."
+        warn "Installez manuellement le toolkit cuda pour votre distribution."
+      fi
+    fi
+
+    # 3. Vérification finale et Activation
+    if command -v nvcc >/dev/null 2>&1; then
+      # Récupération de la version pour le log
+      CUDA_VERSION=$(nvcc --version | grep "release" | sed 's/.*release //; s/,.*//')
+      success "[SUCCÈS] GPU Nvidia actif et CUDA Toolkit détecté (v$CUDA_VERSION)."
+      success "[MODE] Activation de la compilation GPU (CUDA)."
+      
+      # Variables persistantes pour pip : forcent la compilation GPU
+      export CMAKE_ARGS="-DGGML_CUDA=on"
+      export FORCE_CMAKE=1
+    else
+      error "[ECHEC] Le CUDA Toolkit n'a pas pu être installé ou trouvé."
+      warn "[MODE] Fallback : Le script va continuer en mode CPU (plus lent)."
+      
+      # Nettoyage des variables pour éviter un crash de compilation
+      unset CMAKE_ARGS
+      unset FORCE_CMAKE
+    fi
+    
   else
-    error "[ERREUR] Aucun GPU Nvidia détecté ou pilotes absents."
-    warn "[INFO] Le script va continuer en mode CPU."
+    # Pas de GPU Nvidia détecté
+    warn "[INFO] Aucun GPU Nvidia actif détecté."
+    info "[MODE] Installation en mode CPU."
     
-    # On s'assure que les variables ne sont pas définies pour une install CPU propre
     unset CMAKE_ARGS
     unset FORCE_CMAKE
   fi

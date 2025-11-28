@@ -46,20 +46,44 @@ success() { echo -e "${GREEN}$*${RESET}"; }
 warn()    { echo -e "${YELLOW}$*${RESET}"; }
 error()   { echo -e "${RED}$*${RESET}" >&2; }
 
-# Fonction de mise à jour des dépendances Python
+# Fonction de mise à jour des dépendances
 update_python_deps() {
-  info "[LibreStorien] Vérification / Installation des librairies Python..."
-  
-  # Si on est en mode GPU (FORCE_CMAKE défini), on force la réinstallation pour compiler avec CUDA
+  info "[LibreStorien] Vérification des librairies Python..."
+
+  # Chemin du fichier témoin qui prouve qu'on a déjà installé en mode CUDA
+  CUDA_MARKER="$VENV_DIR/.cuda_installed"
+
+  # CAS 1 : On est en mode GPU (Nvidia détecté)
   if [[ -n "${FORCE_CMAKE:-}" ]]; then
-     info "[MODE GPU] Force-reinstall de llama-cpp-python pour activer CUDA..."
-     # --no-cache-dir et --force-reinstall garantissent la compilation
-     python -m pip install --upgrade --force-reinstall --no-cache-dir "llama-cpp-python[server]"
-     python -m pip install --upgrade open-webui
+    
+    # Si le marker n'existe pas, c'est la première fois ou on vient du mode CPU
+    if [[ ! -f "$CUDA_MARKER" ]]; then
+       info "[INSTALLATION GPU] Première installation avec support CUDA (Cela va prendre quelques minutes)..."
+       # On force la réinstallation pour compiler
+       python -m pip install --upgrade --force-reinstall --no-cache-dir "llama-cpp-python[server]"
+       # On crée le fichier témoin
+       touch "$CUDA_MARKER"
+    else
+       # Le marker existe, on fait juste une mise à jour standard (rapide si rien de neuf)
+       info "[UPDATE GPU] Vérification des mises à jour (rapide)..."
+       python -m pip install --upgrade "llama-cpp-python[server]"
+    fi
+
+  # CAS 2 : On est en mode CPU
   else
-     # Mode CPU classique
-     python -m pip install --upgrade "llama-cpp-python[server]" open-webui
+    # Si le marker existe, c'est qu'on avait CUDA avant, il faut nettoyer pour repasser en CPU
+    if [[ -f "$CUDA_MARKER" ]]; then
+       warn "[CHANGEMENT] Passage du mode GPU vers CPU détecté. Réinstallation..."
+       python -m pip install --upgrade --force-reinstall "llama-cpp-python[server]"
+       rm "$CUDA_MARKER"
+    else
+       # Installation CPU classique
+       python -m pip install --upgrade "llama-cpp-python[server]"
+    fi
   fi
+
+  # OpenWebUI s'installe normalement
+  python -m pip install --upgrade open-webui
 }
 
 # Fonction de détection, installation et configuration GPU (Nvidia/CUDA)

@@ -52,6 +52,27 @@ update_python_deps() {
   python -m pip install --upgrade "llama-cpp-python[server]" open-webui
 }
 
+# Fonction de détection et configuration GPU (Nvidia/CUDA)
+configure_gpu_support() {
+  info "[LibreStorien] Vérification de la présence d'un GPU Nvidia..."
+
+  # On vérifie si nvidia-smi est disponible et fonctionne
+  if command -v nvidia-smi >/dev/null 2>&1 && nvidia-smi >/dev/null 2>&1; then
+    success "[SUCCÈS] GPU Nvidia détecté. Activation du support CUDA."
+    
+    # Ces variables forcent la compilation avec CUDA lors des pip install / upgrade
+    export CMAKE_ARGS="-DGGML_CUDA=on"
+    export FORCE_CMAKE=1
+  else
+    error "[ERREUR] Aucun GPU Nvidia détecté ou pilotes absents."
+    warn "[INFO] Le script va continuer en mode CPU."
+    
+    # On s'assure que les variables ne sont pas définies pour une install CPU propre
+    unset CMAKE_ARGS
+    unset FORCE_CMAKE
+  fi
+}
+
 # Fonction de nettoyage à la fin
 cleanup() {
   info "[LibreStorien] Arrêt des services..."
@@ -147,6 +168,9 @@ source "$VENV_DIR/bin/activate"
 
 info "[LibreStorien] Mise à jour de pip..."
 python -m pip install --upgrade pip
+
+# Configuration GPU si possible
+configure_gpu_support
 
 # Mise à jour systématique des libs utilisées
 update_python_deps

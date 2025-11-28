@@ -48,8 +48,18 @@ error()   { echo -e "${RED}$*${RESET}" >&2; }
 
 # Fonction de mise à jour des dépendances Python
 update_python_deps() {
-  info "[LibreStorien] Mise à jour des dépendances Python (llama-cpp-python[server], open-webui)..."
-  python -m pip install --upgrade "llama-cpp-python[server]" open-webui
+  info "[LibreStorien] Vérification / Installation des librairies Python..."
+  
+  # Si on est en mode GPU (FORCE_CMAKE défini), on force la réinstallation pour compiler avec CUDA
+  if [[ -n "${FORCE_CMAKE:-}" ]]; then
+     info "[MODE GPU] Force-reinstall de llama-cpp-python pour activer CUDA..."
+     # --no-cache-dir et --force-reinstall garantissent la compilation
+     python -m pip install --upgrade --force-reinstall --no-cache-dir "llama-cpp-python[server]"
+     python -m pip install --upgrade open-webui
+  else
+     # Mode CPU classique
+     python -m pip install --upgrade "llama-cpp-python[server]" open-webui
+  fi
 }
 
 # Fonction de détection, installation et configuration GPU (Nvidia/CUDA)
@@ -283,12 +293,17 @@ if pgrep -f "llama_cpp.server" >/dev/null 2>&1; then
 else
     info "[LibreStorien] Lancement de llama_cpp.server..."
     cd "$PROJECT_DIR"
+    
+    # --n_gpu_layers -1 : Tente de tout mettre sur le GPU. 
+    # Si ça crashe (Out Of Memory), remplacez -1 par un nombre fixe (ex: 20 ou 30) 
+    # pour laisser une partie du modèle sur le CPU (RAM système).
+    
     python -m llama_cpp.server \
         --model "$MODEL_PATH" \
         --host 127.0.0.1 \
         --port "$LLAMA_PORT" \
-        --n_gpu_layers 999 \
-        --n_ctx 8192 \
+        --n_gpu_layers -1 \
+        --n_ctx 7000 \
         > "$PROJECT_DIR/log_llamacpp.txt" 2>&1 &
 
     LLAMA_PID=$!
@@ -334,31 +349,12 @@ OS_NAME="$(uname -s)"
 
 case "$OS_NAME" in
   Linux)
-    # Vérification si xdg-open est présent
-    if ! command -v xdg-open >/dev/null 2>&1; then
-      warn "[LibreStorien] La commande 'xdg-open' est introuvable. Tentative d'installation..."
-
-      # Installation selon le gestionnaire de paquets
-      if command -v apt >/dev/null 2>&1; then
-        sudo apt update
-        sudo apt install -y xdg-utils
-      elif command -v dnf >/dev/null 2>&1; then
-        sudo dnf install -y xdg-utils
-      elif command -v pacman >/dev/null 2>&1; then
-        sudo pacman -Sy --noconfirm xdg-utils
-      else
-        error "[ERREUR] Impossible d'installer xdg-utils automatiquement."
-      fi
-    fi
-
-    # Tentative d'ouverture après installation potentielle
     if command -v xdg-open >/dev/null 2>&1; then
       xdg-open "$URL" >/dev/null 2>&1 &
     else
-      warn "[LibreStorien] xdg-open non disponible. Ouvrir manuellement : $URL"
+      warn "[LibreStorien] xdg-open non trouvé. Ouvrir manuellement : $URL"
     fi
     ;;
-
   Darwin)
     # macOS
     if command -v open >/dev/null 2>&1; then
@@ -367,7 +363,6 @@ case "$OS_NAME" in
       warn "[LibreStorien] La commande 'open' est introuvable. Ouvrir manuellement : $URL"
     fi
     ;;
-    
   *)
     warn "[LibreStorien] OS non reconnu ($OS_NAME). Ouvrir manuellement : $URL"
     ;;

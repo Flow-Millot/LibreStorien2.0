@@ -319,15 +319,16 @@ else
     cd "$PROJECT_DIR"
     
     # --n_gpu_layers -1 : Tente de tout mettre sur le GPU. 
-    # Si ça crashe (Out Of Memory), remplacez -1 par un nombre fixe (ex: 20 ou 30) 
-    # pour laisser une partie du modèle sur le CPU (RAM système).
+    # Si ça crash, remplacez -1 par un nombre fixe (ex: 20 ou 30) 
+    # pour laisser une partie du modèle sur le CPU.
+
+    #--n_ctx 16384 \
     
     python -m llama_cpp.server \
         --model "$MODEL_PATH" \
         --host 127.0.0.1 \
         --port "$LLAMA_PORT" \
         --n_gpu_layers -1 \
-        --n_ctx 16384 \
         --flash_attn true \
         > "$PROJECT_DIR/log_llamacpp.txt" 2>&1 &
 

@@ -328,6 +328,7 @@ else
         --port "$LLAMA_PORT" \
         --n_gpu_layers -1 \
         --n_ctx 16384 \
+        --flash-attn \
         > "$PROJECT_DIR/log_llamacpp.txt" 2>&1 &
 
     LLAMA_PID=$!

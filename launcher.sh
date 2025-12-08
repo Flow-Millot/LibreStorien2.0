@@ -27,12 +27,8 @@ LLAMA_PORT=10000
 OPENWEBUI_PORT=8080
 
 # Modèle GGUF à utiliser
-#MODEL_FILE="phi-4-Q4_K_M.gguf" # <-- POSSIBILITE D'ADAPTER LE NOM DU FICHIER
-#HF_URL="https://huggingface.co/unsloth/phi-4-GGUF/resolve/main/${MODEL_FILE}" # <-- POSSIBILITE D'ADAPTER LE NOM DU FICHIER
-
-# Modèle Llama 3.1 8B (Version optimisée)
-MODEL_FILE="Meta-Llama-3.1-8B-Instruct-Q5_K_M.gguf"
-HF_URL="https://huggingface.co/bartowski/Meta-Llama-3.1-8B-Instruct-GGUF/resolve/main/${MODEL_FILE}"
+MODEL_FILE="phi-4-Q3_K_M.gguf" # <-- POSSIBILITE D'ADAPTER LE NOM DU FICHIER
+HF_URL="https://huggingface.co/unsloth/phi-4-GGUF/resolve/main/${MODEL_FILE}" # <-- POSSIBILITE D'ADAPTER LE NOM DU FICHIER
 
 MODEL_PATH="models/${MODEL_FILE}" 
 

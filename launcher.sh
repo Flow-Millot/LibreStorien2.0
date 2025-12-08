@@ -27,7 +27,7 @@ LLAMA_PORT=10000
 OPENWEBUI_PORT=8080
 
 # Modèle GGUF à utiliser
-MODEL_FILE="phi-4-Q3_K_M.gguf" # <-- POSSIBILITE D'ADAPTER LE NOM DU FICHIER
+MODEL_FILE="phi-4-Q2_K_L.gguf" # <-- POSSIBILITE D'ADAPTER LE NOM DU FICHIER
 HF_URL="https://huggingface.co/unsloth/phi-4-GGUF/resolve/main/${MODEL_FILE}" # <-- POSSIBILITE D'ADAPTER LE NOM DU FICHIER
 
 MODEL_PATH="models/${MODEL_FILE}" 
@@ -329,6 +329,7 @@ else
         --host 127.0.0.1 \
         --port "$LLAMA_PORT" \
         --n_gpu_layers -1 \
+        --n_ctx 8192 \
         --flash_attn true \
         > "$PROJECT_DIR/log_llamacpp.txt" 2>&1 &
 

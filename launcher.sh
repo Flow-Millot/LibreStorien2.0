@@ -65,7 +65,7 @@ update_python_deps() {
        touch "$CUDA_MARKER"
     else
        # Le marker existe, on fait juste une mise à jour standard (rapide si rien de neuf)
-       info "[UPDATE GPU] Vérification des mises à jour (rapide)..."
+       info "[UPDATE GPU] Vérification des mises à jour..."
        python -m pip install --upgrade "llama-cpp-python[server]"
     fi
 
@@ -329,7 +329,7 @@ else
         --host 127.0.0.1 \
         --port "$LLAMA_PORT" \
         --n_gpu_layers -1 \
-        --n_ctx 8192 \
+        --n_ctx 12288 \
         --flash_attn true \
         > "$PROJECT_DIR/log_llamacpp.txt" 2>&1 &
 
@@ -353,6 +353,13 @@ else
     ENABLE_PERSISTENT_CONFIG="False" \
     ENABLE_WEB_SEARCH="False" \
     OPENAI_API_BASE_URL="http://127.0.0.1:${LLAMA_PORT}/v1" \
+    MODEL_TEMPERATURE="0.1" \
+    CHUNK_SIZE="500" \
+    CHUNK_OVERLAP="50" \
+    RAG_TOP_K="15" \
+    RAG_RERANKING_ENGINE="sentence_transformers" \
+    RAG_RERANKING_MODEL="BAAI/bge-reranker-v2-m3" \
+    ENABLE_RAG_HYBRID_SEARCH="False" \
     open-webui serve \
         --host 0.0.0.0 \
         --port "$OPENWEBUI_PORT" \

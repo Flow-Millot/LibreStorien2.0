@@ -76,13 +76,13 @@ Nommez-la "Activités [Année en cours]" ou bien "Rapport d'activités"
 
 Et déposer tous les fichiers **pdf** contenant les activités voulues dans cet espace. Le modèle s'appuiera sur ces documents pour répondre. Il s'agit d'y déposer la liste complète des activités nécessaires pour la rédaction du rapport complet.
 
-## 3. Création manuelle du modèle custom LibreStorien
+# 3. Création manuelle du modèle custom LibreStorien
 
 Une fois la Connaissance prête, il est temps de créer le modèle associé. Aller dans :
 
 Espace de Travail -> Modèles -> Nouveau Modèle
 
-### 1. Remplir les champs suivants :
+## 1. Remplir les champs suivants :
 
 ---
 

@@ -194,6 +194,10 @@ Non ces [X] exemples ne me conviennent pas pour cette partie, réponds simplemen
 
 En suivant cette procédure, il est ainsi possible de créer une Connaissance et un modèle pour chaque type de document désiré. Il faudra cependant adapter le prompt system du modèle, et peut-être certains paramétrages dans le panneau administrateur, suivant le besoin et la taille des documents de la Connaissance.
 
+# Questionnaire amélioration et retour client
+
+[Lien vers le questionnaire](https://framaforms.org/questionnaire-de-satisfaction-librestorien20-1765287993)
+
 # Optionnel - Création automatique d’un raccourci d’application (.desktop) Linux
 
 Ce script permet de générer automatiquement un raccourci d'application Linux pour lancer LibreStorien (ou tout autre script).

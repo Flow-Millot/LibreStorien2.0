@@ -329,13 +329,15 @@ else
         --host 127.0.0.1 \
         --port "$LLAMA_PORT" \
         --n_gpu_layers -1 \
-        --n_ctx 12288 \
+        --n_ctx 16384 \
         --flash_attn true \
         > "$PROJECT_DIR/log_llamacpp.txt" 2>&1 &
 
     LLAMA_PID=$!
-    success "[LibreStorien] llama_cpp.server lancé (PID $LLAMA_PID)."
+
     sleep 3
+    success "[LibreStorien] llama_cpp.server lancé (PID $LLAMA_PID)."
+
 fi
 
 ########################################
@@ -347,6 +349,9 @@ if pgrep -f "open-webui" >/dev/null 2>&1; then
   info "[LibreStorien] OpenWebUI est déjà en cours d’exécution."
 else
     info "[LibreStorien] Lancement de OpenWebUI..."
+    export HF_HUB_DOWNLOAD_TIMEOUT=120
+
+    # RAG_EMBEDDING_MODEL="BAAI/bge-m3" \
     
     ENABLE_OPENAI_API="True" \
     ENABLE_OLLAMA_API="False" \
@@ -354,20 +359,24 @@ else
     ENABLE_WEB_SEARCH="False" \
     OPENAI_API_BASE_URL="http://127.0.0.1:${LLAMA_PORT}/v1" \
     MODEL_TEMPERATURE="0.1" \
+    RAG_EMBEDDING_MODEL="OrdalieTech/Solon-embeddings-large-0.1" \
     CHUNK_SIZE="500" \
     CHUNK_OVERLAP="50" \
-    RAG_TOP_K="15" \
+    RAG_TOP_K="99" \
+    RAG_TOP_K_RERANKER="99" \
+    RAG_RELEVANCE_THRESHOLD="0" \
     RAG_RERANKING_ENGINE="sentence_transformers" \
     RAG_RERANKING_MODEL="BAAI/bge-reranker-v2-m3" \
-    ENABLE_RAG_HYBRID_SEARCH="False" \
+    ENABLE_RAG_HYBRID_SEARCH="True" \
     open-webui serve \
         --host 0.0.0.0 \
         --port "$OPENWEBUI_PORT" \
         > "$PROJECT_DIR/log_openwebui.txt" 2>&1 &
 
     OPENWEBUI_PID=$!
-    success "[LibreStorien] OpenWebUI lancé (PID $OPENWEBUI_PID)."
     sleep 5
+    success "[LibreStorien] OpenWebUI lancé (PID $OPENWEBUI_PID)."
+    
 fi
 
 ########################################

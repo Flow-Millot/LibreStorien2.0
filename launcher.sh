@@ -63,10 +63,10 @@ fi
 
 # Nouvelle version simplifiée de la fonction d'installation
 install_sys_package() {
-  local PKG_APT="$1"
-  local PKG_DNF="$2"
-  local PKG_PACMAN="$3"
-  local PKG_BREW="$4"
+  local PKG_APT="${1:-}"
+  local PKG_DNF="${2:-}"
+  local PKG_PACMAN="${3:-}"
+  local PKG_BREW="${4:-}"
   local PKG_TARGET=""
 
   case "$PKG_MANAGER" in
@@ -115,6 +115,8 @@ update_python_deps() {
     CURRENT_MODE="cuda"
   elif [[ "${CMAKE_ARGS:-}" == *"-DGGML_HIPBLAS=on"* ]]; then
     CURRENT_MODE="rocm"
+  elif [[ "${CMAKE_ARGS:-}" == *"-DGGML_VULKAN=on"* ]]; then
+    CURRENT_MODE="vulkan"
   fi
 
   info "[DEPENDANCES] Mode détecté : $CURRENT_MODE (Précédent : ${LAST_MODE:-aucun})"
@@ -205,9 +207,26 @@ configure_gpu_support() {
       warn "Fallback CPU."
     fi
   
+  # --- C. DÉTECTION VULKAN (WSL2 / Fallback AMD) ---
+  # Si on est sous WSL2 (libd3d12.so présent) ou si vulkaninfo existe
+  elif [[ -f "/usr/lib/wsl/lib/libd3d12.so" ]] || command -v vulkaninfo >/dev/null 2>&1; then
+    info "[GPU] Support Vulkan détecté (WSL2 ou GPU générique)."
+    
+    # Installation des dépendances Vulkan si nécessaire
+    if ! command -v vulkaninfo >/dev/null 2>&1 || ! command -v glslc >/dev/null 2>&1; then
+        warn "[ATTENTION] Outils Vulkan manquants (vulkaninfo ou glslc)."
+        info "[LibreStorien] Installation de vulkan-tools, libvulkan-dev, mesa-vulkan-drivers et glslc..."
+        install_sys_package "vulkan-tools libvulkan-dev mesa-vulkan-drivers glslc" "vulkan-tools vulkan-loader-devel mesa-vulkan-drivers glslc" "vulkan-tools vulkan-headers mesa-vulkan-drivers shaderc"
+    fi
+
+    success "[SUCCÈS] Mode Vulkan activé."
+    export CMAKE_ARGS="-DGGML_VULKAN=on"
+    export FORCE_CMAKE=1
+    return
+
   else
-    # --- C. AUCUN GPU ---
-    warn "[INFO] Aucun GPU compatible (Nvidia/AMD) détecté."
+    # --- D. AUCUN GPU ---
+    warn "[INFO] Aucun GPU compatible (Nvidia/AMD/Vulkan) détecté."
   fi
 
   # --- D. FALLBACK CPU ---
@@ -324,6 +343,13 @@ info "[LibreStorien] Activation de la venv existante..."
 # shellcheck disable=SC1090
 source "$VENV_DIR/bin/activate"
 
+# Configuration pour WSL2 (accès aux drivers Windows)
+# On le fait après l'activation du venv pour être sûr
+if [[ -d "/usr/lib/wsl/lib" ]]; then
+    info "[CONFIG] WSL2 détecté. Ajout de /usr/lib/wsl/lib au LD_LIBRARY_PATH."
+    export LD_LIBRARY_PATH="/usr/lib/wsl/lib:${LD_LIBRARY_PATH:-}"
+fi
+
 info "[LibreStorien] Mise à jour de pip..."
 python -m pip install --upgrade pip
 
@@ -384,6 +410,49 @@ else
         # Cette variable force la compatibilité pour beaucoup de cartes RDNA2/3.
         export HSA_OVERRIDE_GFX_VERSION=10.3.0
         info "[CONFIG] AMD : HSA_OVERRIDE_GFX_VERSION=10.3.0 appliqué (Support RX 6000/7000)."
+    
+    elif [[ "${CMAKE_ARGS:-}" == *"-DGGML_VULKAN=on"* ]]; then
+        info "[CONFIG] Configuration Vulkan détectée."
+        FLASH_ATTN_FLAG=""
+        warn "[CONFIG] Vulkan : Flash Attention désactivé."
+        
+        # DEBUG: Vérifier la visibilité du GPU
+        info "[DEBUG] Vérification de l'accès GPU Vulkan..."
+        
+        # On construit le chemin de librairie incluant WSL
+        LIB_PATH="/usr/lib/wsl/lib"
+        if [[ -n "${LD_LIBRARY_PATH:-}" ]]; then
+            LIB_PATH="$LIB_PATH:$LD_LIBRARY_PATH"
+        fi
+        
+        # Vérification de la présence du driver dzn (Microsoft Dozen) - UNIQUEMENT POUR WSL2
+        if [[ -f "/usr/lib/wsl/lib/libd3d12.so" ]]; then
+            if ! ls /usr/share/vulkan/icd.d/*dzn*.json >/dev/null 2>&1; then
+                warn "[ATTENTION] Driver Vulkan 'dzn' (Microsoft Dozen) introuvable."
+                warn "Ce driver est nécessaire pour l'accélération GPU sous WSL2."
+                
+                # Tentative d'installation automatique si apt est dispo
+                if command -v apt-add-repository >/dev/null 2>&1; then
+                     info "[LibreStorien] Ajout du PPA kisak-mesa et mise à jour des drivers..."
+                     sudo add-apt-repository -y ppa:kisak/kisak-mesa
+                     sudo apt update
+                     sudo apt install -y mesa-vulkan-drivers
+                else
+                     error "Veuillez installer 'mesa-vulkan-drivers' depuis un PPA compatible (ex: kisak-mesa)."
+                fi
+            fi
+
+            # Force l'utilisation du driver Mesa "Dozen" (dzn) qui traduit Vulkan -> D3D12 (WSL2)
+            export MESA_LOADER_DRIVER_OVERRIDE=dzn
+            info "[CONFIG] Force MESA_LOADER_DRIVER_OVERRIDE=dzn pour WSL2."
+        fi
+        
+        # Test rapide de détection GPU
+        if env LD_LIBRARY_PATH="$LIB_PATH" vulkaninfo --summary > /dev/null 2>&1; then
+             success "[SUCCÈS] GPU Vulkan détecté."
+        else
+             warn "[ATTENTION] vulkaninfo a échoué, mais on tente le lancement quand même."
+        fi
     fi
     info "[LibreStorien] Lancement de llama_cpp.server..."
     cd "$PROJECT_DIR"
@@ -394,7 +463,14 @@ else
 
     #--n_ctx 16384 \
     
-    python -m llama_cpp.server \
+    # Construction du LD_LIBRARY_PATH final pour le serveur
+    SERVER_LIB_PATH="/usr/lib/wsl/lib"
+    if [[ -n "${LD_LIBRARY_PATH:-}" ]]; then
+        SERVER_LIB_PATH="$SERVER_LIB_PATH:$LD_LIBRARY_PATH"
+    fi
+
+    # Force LD_LIBRARY_PATH pour la commande python au cas où
+    env LD_LIBRARY_PATH="$SERVER_LIB_PATH" python -m llama_cpp.server \
         --model "$MODEL_PATH" \
         --host 127.0.0.1 \
         --port "$LLAMA_PORT" \

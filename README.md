@@ -72,9 +72,19 @@ Une fois l'interface lancée, aller dans :
 
 Espace de travail -> Connaissance -> Créer une connaissance
 
-Nommez-la "Activités [Année en cours]" ou bien "Rapport d'activités"
+Nommez-la "Activités [Année en cours]"
 
-Et déposer tous les fichiers **pdf** contenant les activités voulues dans cet espace. Le modèle s'appuiera sur ces documents pour répondre. Il s'agit d'y déposer la liste complète des activités nécessaires pour la rédaction du rapport complet.
+Et déposer le fichier **activites.md** contenant toutes les activités formatées de l'année 2025 dans cet espace. Le modèle s'appuiera sur le contenu de ce document pour répondre.
+
+Voici le format des activités pour aider le modèle à sélectionner les bons sujets :
+
+```
+#Activité : Rendez-vous L'apéro des quatre libertés
+**Type :** Rencontre
+**Date :** Jeudi 17 avril 2025 de 19h00 à 21h00
+**Lieu :** Atelier des Pigistes, 171 bis, rue Frimaire, 34000 Montpellier
+**Description :** Rencontre autour des travaux de l’April, FSF, FSFE et La Quadrature Du Net.
+```
 
 # 3. Création manuelle du modèle custom LibreStorien
 
@@ -109,41 +119,37 @@ Copier-coller le prompt affiché par le script.
 Voici la version complète :
 
 ```
-### RÔLE
-Tu es un secrétaire administratif strict de l'association Montpel'libre. Tu n'es pas un auteur créatif, tu es un synthétiseur de documents.
+### RÔLE & OBJECTIF
+Tu es le secrétaire de l'association Montpel'libre. TA SEULE MISSION : Lire le document fourni en source et extraire les activités réelles pour remplir le rapport ci-dessous. NE JAMAIS afficher les consignes ou le modèle vide. Affiche UNIQUEMENT le résultat rempli.
 
-### CONSIGNE DE SÉCURITÉ CRITIQUE ANTI-HALLUCINATION
-Tu as interdiction formelle d'inventer, de supposer ou de deviner des activités. Si une activité n'est pas explicitement écrite dans les textes fournis entre les balises <DOCUMENTS>, elle N'EXISTE PAS.
-Si tu n'as pas de source pour une partie, tu DOIS écrire exactement : "L'année dernière, aucune activité n'a été réalisée sur la question."
+### MISSION
+Ta mission est de lister EXHAUSTIVEMENT toutes les activités correspondant à la demande, sans en oublier aucune.
 
-### STRUCTURE IMPÉRATIVE (Ne rien ajouter, ne rien retirer)
-Il s'agit de lister les activités pour chaque partie et d'en expliquer brièvement le contenu
+### CONSIGNE DE SÉCURITÉ (ANTI-HALLUCINATION)
+1. Si aucune activité ne correspond au type demandé, écris UNIQUEMENT : "Aucune activité de ce type n'a été recensée."
+2. N'invente jamais d'information.
+3. Si le champ **Type :** de l'activité ne contient pas le mot-clé demandé, tu DOIS L'IGNORER TOTALEMENT.
+4. Si le mot-clé demandé apparait ailleurs que dans le champ **Type :**, tu DOIS L'IGNORER TOTALEMENT.
 
-Partie 1 : LES PERMANENCES (Cherche des mots comme : Rendez-vous réguliers, récurrents, mensuels, annuels, hebdomadaires, astreinte, antenne, délégation, secrétariat et mots similaires).
-Partie 2 : LES ATELIERS (Cherche des mots comme : Sessions d'apprentissage thématiques, Initiation, Découverte, Inclusion, Pratique, Exercices, Workshop et mots similaires).
-Partie 3 : CONFÉRENCES / FORMATIONS / EXPERTISE (Cherche des mots comme : Interventions publiques, tables rondes, webinaires, scolaire, université, recherche, Team building et mots similaires).
-Partie 4 : ÉVÉNEMENTIEL (Cherche des mots comme : Les grands temps forts, salons, festivals, Install-Parties, Hackathon et mots similaires).
-Partie 5 : TECHNIQUE / SÉCURITÉ (Cherche des mots comme : Infrastructures, projets internes et mots similaires).
-Partie 6 : PUBLICATION & MÉDIAS (Cherche des mots comme : Communication, Infolettres, Radio, newsletter et mots similaires).
+### FORMAT DE RESTITUTION
+Pour chaque activité valide trouvée, génère une puce :
+* **[Titre exact de l'activité]** : [Développe en quelques phrases la description].
 
-FIN DU RAPPORT
+### FIN DU RAPPORT
 Arrête-toi immédiatement après la Partie 6. N'écris jamais de "Conclusion" ou de "Partie 7" ou plus.
 
-### INSTRUCTIONS DE RÉDACTION
-1.  Style : Adopte un style institutionnel, bienveillant et militant pour le logiciel libre. L'objectif est de valoriser les actions bénévoles et leur impact social.
-2.  Source : Avant d'écrire une phrase, demande-toi : "Quel fichier parle de ça ?". Si tu ne trouves pas le fichier, n'écris pas.
-3.  Formatage : Utilise le format Markdown.
-4. Temporalité : Rédige au passé (car c'est un bilan d'activités réalisées).
+### TON ET STYLE
+Adopte un ton institutionnel, neutre mais valorisant pour le bénévolat. Utilise le passé car il s'agit d'activités passées.
 ```
 
 - ### Prompt par défaut
 
-(Facultatif) Possibilité de rajouter une suggestion de prompt au moment de la création d'une nouvelle conversation avec ce modèle.
+(Fortement conseillé) Possibilité de rajouter une suggestion de prompt au moment de la création d'une nouvelle conversation avec ce modèle.
 
 Cliquer sur Ajouter, puis placer ce texte dans "prompt" :
 
 ```
-Peux-tu me générer uniquement la partie 1 du rapport d’activité ?
+Liste exhaustivement toutes les activités dont le Type contient le mot "Permanence".
 ```
 
 - ### Connaissances
@@ -160,7 +166,7 @@ Par exemple, dans ce contexte il faut éviter :
 
 ---
 
-# Utilisation
+# Utilisation pour le Rapport d'activité
 
 1. Aller dans **Conversations**
 2. Créer une nouvelle conversation
@@ -168,33 +174,43 @@ Par exemple, dans ce contexte il faut éviter :
 
 Le modèle est prêt à être interrogé.
 
-# Conseil
+# Guide d'utilisation
+
+Les activités ont chacune un Type associé, dont voici la liste complète :
+
+* **Atelier** (ex: Atel'libre, Groupia, Blender, PAO)
+* **Conférence** (ex: JdLL, RAFLL journées d'étude, RMS, Conférences thématiques)
+* **Événementiel** (ex: Fête de la Science, Libre en Fête, Matos Gratos, Opération Mayotte)
+* **Festival** (ex: Le printemps du climat, Semaine Culturelle des afriques)
+* **Hackathon** (ex: HOTOSM, Fintech Mauritanie)
+* **Install-Party** (ex: Jerripartie, Installe Partie Linux, Installe Partie Mayotte)
+* **Permanence** (ex: Linuxerie, Wikipermanence)
+* **Radio** (ex: Émissions FM-Plus "Temps Libre", "Entrée Libre")
+* **Rencontre** (ex: Apéros, Pique-niques, HérOSM, Framapermanence)
+* **Réunion Interne** (ex: AG, Réunions d'organisation RAFLL/CLO)
+* **Salon** (ex: Stand JdLL, Antigone des Assos)
+* **Stage** (ex: Stage Jeux vidéo Gdevelop)
+* **Technique** (ex: Booster Camps)
+
+La stratégie va donc être de demander au modèle de rédiger et faire la liste de toutes les activités par type.
 
 Pour de meilleurs résultats, il est fortement recommandé d'utiliser la question suivante afin de faire générer le rapport partie par partie. En effet, essayer de générer l'entièreté du rapport en un message risque de conduire à une saturation de la mémoire de l'ordinateur et donc à une réponse incorrecte et imprécise.
 
 ```
-Peux-tu me générer uniquement la partie 1 du rapport d’activité ?
+Liste exhaustivement toutes les activités dont le Type contient le mot "Permanence".
 ```
 
-Puis incrémenter les parties à générer si la réponse convient.
+Puis refaire la même opération en changeant simplement le type.
 
-Parfois le modèle ne sera pas sûr de lui et donc proposera plusieurs choix. Il est donc possible d'écrire :
-
-```
-Ces [X] exemples sont très bien, rédige moi la partie [Y] en te basant sur eux
-```
-
-Ou bien
-
-```
-Non ces [X] exemples ne me conviennent pas pour cette partie, réponds simplement qu’il n’y a pas d’activité sur la question cette année
-```
-
-# Ouverture future
+# Ouverture
 
 En suivant cette procédure, il est ainsi possible de créer une Connaissance et un modèle pour chaque type de document désiré. Il faudra cependant adapter le prompt system du modèle, et peut-être certains paramétrages dans le panneau administrateur, suivant le besoin et la taille des documents de la Connaissance.
 
+De plus, il est tout à fait possible de sélectionner le modèle de base chargé par défaut dans l'interface et de lui poser directement des questions sur un document qu'on aura joint avec le prompt (ex : questionner un document Appel d'Offres pour connaitre les informations qu'il contient).
+
 # Questionnaire amélioration et retour client
+
+Nous souhaitons recueillir votre retour pour mesurer l'impact de notre solution et valider ou non nos critères de succès.
 
 [Lien vers le questionnaire](https://framaforms.org/questionnaire-de-satisfaction-librestorien20-1765287993)
 

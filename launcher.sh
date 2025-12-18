@@ -37,6 +37,53 @@ LLAMA_PID=""
 OPENWEBUI_PID=""
 
 ##############################
+# Détection OS & Gestionnaire
+##############################
+PKG_MANAGER=""
+INSTALL_CMD=""
+UPDATE_CMD=""
+
+if command -v apt >/dev/null 2>&1; then # Ubuntu / Debian
+    PKG_MANAGER="apt"
+    INSTALL_CMD="sudo apt install -y"
+    UPDATE_CMD="sudo apt update"
+elif command -v dnf >/dev/null 2>&1; then # Fedora
+    PKG_MANAGER="dnf"
+    INSTALL_CMD="sudo dnf install -y"
+    UPDATE_CMD="sudo dnf check-update" # Souvent optionnel mais bon à avoir
+elif command -v pacman >/dev/null 2>&1; then # Arch Linux
+    PKG_MANAGER="pacman"
+    INSTALL_CMD="sudo pacman -Sy --noconfirm"
+    UPDATE_CMD="sudo pacman -Sy"
+elif command -v brew >/dev/null 2>&1; then # Ajout pour macOS
+    PKG_MANAGER="brew"
+    INSTALL_CMD="brew install"
+    UPDATE_CMD="brew update"
+fi
+
+# Nouvelle version simplifiée de la fonction d'installation
+install_sys_package() {
+  local PKG_APT="$1"
+  local PKG_DNF="$2"
+  local PKG_PACMAN="$3"
+  local PKG_TARGET=""
+
+  case "$PKG_MANAGER" in
+    apt)    PKG_TARGET="$PKG_APT" ;;
+    dnf)    PKG_TARGET="$PKG_DNF" ;;
+    pacman) PKG_TARGET="$PKG_PACMAN" ;;
+    *)      
+        error "[ERREUR] Gestionnaire de paquets non supporté automatiquement."
+        warn "Veuillez installer manuellement : $PKG_APT (ou équivalent)"
+        return 1 
+        ;;
+  esac
+
+  info "[SYSTEM] Détection de $PKG_MANAGER. Installation de : $PKG_TARGET"
+  $INSTALL_CMD "$PKG_TARGET"
+}
+
+##############################
 # Fonctions utilitaires      #
 ##############################
 
@@ -45,35 +92,6 @@ info()    { echo -e "${CYAN}$*${RESET}"; }
 success() { echo -e "${GREEN}$*${RESET}"; }
 warn()    { echo -e "${YELLOW}$*${RESET}"; }
 error()   { echo -e "${RED}$*${RESET}" >&2; }
-
-# Fonction globale pour installer des paquets système selon la distribution
-# Usage: install_sys_package "nom_apt" "nom_dnf" "nom_pacman"
-install_sys_package() {
-  local PKG_APT="$1"
-  local PKG_DNF="$2"
-  local PKG_PACMAN="$3"
-
-  if command -v apt >/dev/null 2>&1; then
-    # Debian / Ubuntu / Mint
-    info "[SYSTEM] Détection de apt. Installation de : $PKG_APT"
-    sudo apt update && sudo apt install -y "$PKG_APT"
-
-  elif command -v dnf >/dev/null 2>&1; then
-    # Fedora / RHEL
-    info "[SYSTEM] Détection de dnf. Installation de : $PKG_DNF"
-    sudo dnf install -y "$PKG_DNF"
-
-  elif command -v pacman >/dev/null 2>&1; then
-    # Arch Linux / Manjaro
-    info "[SYSTEM] Détection de pacman. Installation de : $PKG_PACMAN"
-    sudo pacman -Sy --noconfirm "$PKG_PACMAN"
-
-  else
-    error "[ERREUR] Gestionnaire de paquets non supporté automatiquement."
-    warn "Veuillez installer manuellement : $PKG_APT (ou équivalent)"
-    return 1
-  fi
-}
 
 # Fonction de mise à jour des dépendances
 update_python_deps() {
@@ -195,20 +213,19 @@ configure_gpu_support() {
 }
 
 # Fonction de nettoyage à la fin
+kill_service() {
+    local PID="$1"
+    local NAME="$2"
+    if [[ -n "$PID" ]] && kill -0 "$PID" 2>/dev/null; then
+        kill "$PID" >/dev/null 2>&1
+        success "[LibreStorien] $NAME arrêté (PID $PID)."
+    fi
+}
+
 cleanup() {
   info "[LibreStorien] Arrêt des services..."
-
-  if [[ -n "${LLAMA_PID:-}" ]]; then
-    if kill "$LLAMA_PID" >/dev/null 2>&1; then
-      success "[LibreStorien] llama_cpp.server arrêté (PID $LLAMA_PID)."
-    fi
-  fi
-
-  if [[ -n "${OPENWEBUI_PID:-}" ]]; then
-    if kill "$OPENWEBUI_PID" >/dev/null 2>&1; then
-      success "[LibreStorien] OpenWebUI arrêté (PID $OPENWEBUI_PID)."
-    fi
-  fi
+  kill_service "${LLAMA_PID:-}" "llama_cpp.server"
+  kill_service "${OPENWEBUI_PID:-}" "OpenWebUI"
 }
 # Nettoyage quand le script se termine ou lors d'un Ctrl+C
 trap cleanup EXIT INT TERM
@@ -222,32 +239,30 @@ PYTHON_BIN="python3.11"
 if ! command -v "$PYTHON_BIN" >/dev/null 2>&1; then
     warn "[LibreStorien] python3.11 introuvable. Tentative d'installation..."
 
-    # --- Ubuntu / Debian ---
-    if command -v apt >/dev/null 2>&1; then
-        sudo apt update
-        sudo apt install -y software-properties-common
-        sudo add-apt-repository -y ppa:deadsnakes/ppa
-        sudo apt update
-        sudo apt install -y python3.11 python3.11-venv python3.11-distutils
-
-    # --- Fedora ---
-    elif command -v dnf >/dev/null 2>&1; then
-        sudo dnf install -y python3.11 python3.11-devel
-
-    # --- Arch Linux ---
-    elif command -v pacman >/dev/null 2>&1; then
-        sudo pacman -Sy --noconfirm python311
-
-    # --- macOS (Homebrew) ---
-    elif command -v brew >/dev/null 2>&1; then
-        brew install python@3.11
-        brew link python@3.11 --force
-
-    else
-        error "[ERREUR] Impossible d'installer python3.11 automatiquement (OS non détecté)."
-        warn "Installe python3.11 manuellement puis relance."
-        exit 1
-    fi
+    case "$PKG_MANAGER" in
+        apt)
+            $UPDATE_CMD
+            $INSTALL_CMD software-properties-common
+            sudo add-apt-repository -y ppa:deadsnakes/ppa
+            $UPDATE_CMD
+            $INSTALL_CMD python3.11 python3.11-venv python3.11-distutils
+            ;;
+        dnf)
+            $INSTALL_CMD python3.11 python3.11-devel
+            ;;
+        pacman)
+            $INSTALL_CMD python311
+            ;;
+        brew)
+            $INSTALL_CMD python@3.11
+            brew link python@3.11 --force
+            ;;
+        *)
+            error "[ERREUR] Impossible d'installer python3.11 automatiquement (OS non détecté)."
+            warn "Installe python3.11 manuellement puis relance."
+            exit 1
+            ;;
+    esac
 
     # Re-vérifier
     if ! command -v "$PYTHON_BIN" >/dev/null 2>&1; then

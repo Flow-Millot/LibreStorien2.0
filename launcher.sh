@@ -459,6 +459,8 @@ success "[LibreStorien] Lancement terminé."
 # Si on a lancé au moins un des services, on attend qu'ils se terminent
 if [[ -n "${LLAMA_PID:-}" || -n "${OPENWEBUI_PID:-}" ]]; then
   info "[LibreStorien] Les services s'arrêteront lors de la fermeture cette fenêtre ou grâce à Ctrl+C."
+  warn "[LibreStorien] Veuillez attendre quelques minutes le temps que OpenWeb UI installe l'embedding model et le reranker au premier lancement."
+  info "[LibreStorien] Logs : log_llamacpp.txt et log_openwebui.txt"
   # On attend les process lancés (ceci garde le script vivant)
   wait ${LLAMA_PID:-} ${OPENWEBUI_PID:-} 2>/dev/null || true
 else

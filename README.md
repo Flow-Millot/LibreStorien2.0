@@ -86,13 +86,13 @@ Voici le format des activités pour aider le modèle à sélectionner les bons s
 **Description :** Rencontre autour des travaux de l’April, FSF, FSFE et La Quadrature Du Net.
 ```
 
-## 3. Création manuelle du modèle custom LibreStorien
+# 3. Création manuelle du modèle custom LibreStorien
 
 Une fois la Connaissance prête, il est temps de créer le modèle associé. Aller dans :
 
 Espace de Travail -> Modèles -> Nouveau Modèle
 
-### 1. Remplir les champs suivants :
+## 1. Remplir les champs suivants :
 
 ---
 
@@ -207,6 +207,12 @@ Puis refaire la même opération en changeant simplement le type.
 En suivant cette procédure, il est ainsi possible de créer une Connaissance et un modèle pour chaque type de document désiré. Il faudra cependant adapter le prompt system du modèle, et peut-être certains paramétrages dans le panneau administrateur, suivant le besoin et la taille des documents de la Connaissance.
 
 De plus, il est tout à fait possible de sélectionner le modèle de base chargé par défaut dans l'interface et de lui poser directement des questions sur un document qu'on aura joint avec le prompt (ex : questionner un document Appel d'Offres pour connaitre les informations qu'il contient).
+
+# Questionnaire amélioration et retour client
+
+Nous souhaitons recueillir votre retour pour mesurer l'impact de notre solution et valider ou non nos critères de succès.
+
+[Lien vers le questionnaire](https://framaforms.org/questionnaire-de-satisfaction-librestorien20-1765287993)
 
 # Optionnel - Création automatique d’un raccourci d’application (.desktop) Linux
 

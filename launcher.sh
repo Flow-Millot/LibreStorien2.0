@@ -363,7 +363,7 @@ else
     CHUNK_SIZE="500" \
     CHUNK_OVERLAP="50" \
     RAG_TOP_K="99" \
-    RAG_TOP_K_RERANKER="99" \
+    RAG_TOP_K_RERANKER="89" \
     RAG_RELEVANCE_THRESHOLD="0" \
     RAG_RERANKING_ENGINE="sentence_transformers" \
     RAG_RERANKING_MODEL="BAAI/bge-reranker-v2-m3" \

@@ -66,12 +66,14 @@ install_sys_package() {
   local PKG_APT="$1"
   local PKG_DNF="$2"
   local PKG_PACMAN="$3"
+  local PKG_BREW="$4"
   local PKG_TARGET=""
 
   case "$PKG_MANAGER" in
     apt)    PKG_TARGET="$PKG_APT" ;;
     dnf)    PKG_TARGET="$PKG_DNF" ;;
     pacman) PKG_TARGET="$PKG_PACMAN" ;;
+    brew)   PKG_TARGET="$PKG_BREW" ;;
     *)      
         error "[ERREUR] Gestionnaire de paquets non supporté automatiquement."
         warn "Veuillez installer manuellement : $PKG_APT (ou équivalent)"
@@ -80,7 +82,9 @@ install_sys_package() {
   esac
 
   info "[SYSTEM] Détection de $PKG_MANAGER. Installation de : $PKG_TARGET"
-  $INSTALL_CMD "$PKG_TARGET"
+  if [[ -n "$PKG_TARGET" ]]; then
+      $INSTALL_CMD $PKG_TARGET
+  fi
 }
 
 ##############################
@@ -212,6 +216,28 @@ configure_gpu_support() {
   unset FORCE_CMAKE
 }
 
+# Fonction de téléchargement agnostique (curl ou wget)
+download_file() {
+  local URL="$1"
+  local DEST="$2"
+
+  if command -v curl >/dev/null 2>&1; then
+    curl -L "$URL" -o "$DEST"
+  elif command -v wget >/dev/null 2>&1; then
+    wget -O "$DEST" "$URL"
+  else
+    warn "[LibreStorien] Ni curl ni wget détecté, tentative d'installation..."
+    install_sys_package "curl" "curl" "curl" "curl"
+    # Récursion : on réessaie après installation
+    if command -v curl >/dev/null 2>&1; then
+        curl -L "$URL" -o "$DEST"
+    else
+        error "[ERREUR] Impossible de télécharger (outils manquants)."
+        return 1
+    fi
+  fi
+}
+
 # Fonction de nettoyage à la fin
 kill_service() {
     local PID="$1"
@@ -277,17 +303,13 @@ info "[LibreStorien] python3.11 disponible : $(which python3.11)"
 # Dépendances système pour llama-cpp (Ubuntu)
 ##############################################
 
-if command -v apt >/dev/null 2>&1; then
-  info "[LibreStorien] Vérification des dépendances système pour llama-cpp (build-essential, cmake, python3.11-dev)..."
+info "[LibreStorien] Vérification des dépendances système pour llama-cpp (build-essential, cmake, python3.11-dev)..."
 
-  if ! dpkg -s build-essential cmake python3.11-dev >/dev/null 2>&1; then
-    info "[LibreStorien] Installation des dépendances système nécessaires à llama-cpp..."
-    sudo apt update
-    sudo apt install -y build-essential cmake python3.11-dev
-  else
-    info "[LibreStorien] Dépendances système déjà installées."
-  fi
-fi
+install_sys_package \
+  "build-essential cmake python3.11-dev" \
+  "gcc-c++ cmake python3.11-devel" \
+  "base-devel cmake" \
+  "cmake"
 
 ################################
 # 1. Création / activation venv #
@@ -326,24 +348,14 @@ fi
 
 if [[ ! -f "$MODEL_PATH" ]]; then
   warn "[LibreStorien] Modèle introuvable localement, téléchargement depuis Hugging Face..."
+  
+  # Création du dossier si nécessaire
   mkdir -p "$(dirname "$MODEL_PATH")"
 
-  DL_TOOL=""
-
-  if ! command -v curl >/dev/null 2>&1 && ! command -v wget >/dev/null 2>&1; then
-    warn "[LibreStorien] Ni curl ni wget détecté, tentative d'installation..."
-    install_sys_package "curl" "curl" "curl"
-    DL_TOOL="curl"
-  fi
-
   info "[LibreStorien] Téléchargement du modèle depuis : $HF_URL"
-  if [[ "$DL_TOOL" == "curl" ]]; then
-    curl -L "$HF_URL" -o "$MODEL_PATH"
-  else
-    wget -O "$MODEL_PATH" "$HF_URL"
-  fi
-
-  if [[ ! -f "$MODEL_PATH" ]]; then
+  
+  # Appel de notre nouvelle fonction simplifiée
+  if ! download_file "$HF_URL" "$MODEL_PATH"; then
     error "[ERREUR] Échec du téléchargement du modèle depuis $HF_URL"
     exit 1
   fi

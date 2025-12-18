@@ -46,107 +46,152 @@ success() { echo -e "${GREEN}$*${RESET}"; }
 warn()    { echo -e "${YELLOW}$*${RESET}"; }
 error()   { echo -e "${RED}$*${RESET}" >&2; }
 
+# Fonction globale pour installer des paquets système selon la distribution
+# Usage: install_sys_package "nom_apt" "nom_dnf" "nom_pacman"
+install_sys_package() {
+  local PKG_APT="$1"
+  local PKG_DNF="$2"
+  local PKG_PACMAN="$3"
+
+  if command -v apt >/dev/null 2>&1; then
+    # Debian / Ubuntu / Mint
+    info "[SYSTEM] Détection de apt. Installation de : $PKG_APT"
+    sudo apt update && sudo apt install -y "$PKG_APT"
+
+  elif command -v dnf >/dev/null 2>&1; then
+    # Fedora / RHEL
+    info "[SYSTEM] Détection de dnf. Installation de : $PKG_DNF"
+    sudo dnf install -y "$PKG_DNF"
+
+  elif command -v pacman >/dev/null 2>&1; then
+    # Arch Linux / Manjaro
+    info "[SYSTEM] Détection de pacman. Installation de : $PKG_PACMAN"
+    sudo pacman -Sy --noconfirm "$PKG_PACMAN"
+
+  else
+    error "[ERREUR] Gestionnaire de paquets non supporté automatiquement."
+    warn "Veuillez installer manuellement : $PKG_APT (ou équivalent)"
+    return 1
+  fi
+}
+
 # Fonction de mise à jour des dépendances
 update_python_deps() {
   info "[LibreStorien] Vérification des librairies Python..."
 
-  # Chemin du fichier témoin qui prouve qu'on a déjà installé en mode CUDA
-  CUDA_MARKER="$VENV_DIR/.cuda_installed"
-
-  # CAS 1 : On est en mode GPU (Nvidia détecté)
-  if [[ -n "${FORCE_CMAKE:-}" ]]; then
-    
-    # Si le marker n'existe pas, c'est la première fois ou on vient du mode CPU
-    if [[ ! -f "$CUDA_MARKER" ]]; then
-       info "[INSTALLATION GPU] Première installation avec support CUDA (Cela va prendre quelques minutes)..."
-       # On force la réinstallation pour compiler
-       python -m pip install --upgrade --force-reinstall --no-cache-dir "llama-cpp-python[server]"
-       # On crée le fichier témoin
-       touch "$CUDA_MARKER"
-    else
-       # Le marker existe, on fait juste une mise à jour standard (rapide si rien de neuf)
-       info "[UPDATE GPU] Vérification des mises à jour..."
-       python -m pip install --upgrade "llama-cpp-python[server]"
-    fi
-
-  # CAS 2 : On est en mode CPU
-  else
-    # Si le marker existe, c'est qu'on avait CUDA avant, il faut nettoyer pour repasser en CPU
-    if [[ -f "$CUDA_MARKER" ]]; then
-       warn "[CHANGEMENT] Passage du mode GPU vers CPU détecté. Réinstallation..."
-       python -m pip install --upgrade --force-reinstall "llama-cpp-python[server]"
-       rm "$CUDA_MARKER"
-    else
-       # Installation CPU classique
-       python -m pip install --upgrade "llama-cpp-python[server]"
-    fi
+  # Fichier témoin contenant le mode de la dernière installation (ex: "cuda", "rocm", "cpu")
+  MODE_FILE="$VENV_DIR/.installed_mode"
+  LAST_MODE=""
+  
+  if [[ -f "$MODE_FILE" ]]; then
+    LAST_MODE=$(cat "$MODE_FILE")
   fi
 
-  # OpenWebUI s'installe normalement
+  # Déterminer le mode actuel basé sur la détection faite dans configure_gpu_support
+  CURRENT_MODE="cpu"
+  if [[ "${CMAKE_ARGS:-}" == *"-DGGML_CUDA=on"* ]]; then
+    CURRENT_MODE="cuda"
+  elif [[ "${CMAKE_ARGS:-}" == *"-DGGML_HIPBLAS=on"* ]]; then
+    CURRENT_MODE="rocm"
+  fi
+
+  info "[DEPENDANCES] Mode détecté : $CURRENT_MODE (Précédent : ${LAST_MODE:-aucun})"
+
+  # Si le mode a changé ou si c'est la première install
+  if [[ "$CURRENT_MODE" != "$LAST_MODE" ]]; then
+    warn "[CHANGEMENT] Configuration matérielle modifiée ($LAST_MODE -> $CURRENT_MODE). Réinstallation forcée..."
+    
+    # On force la réinstallation pour compiler avec les bons drapeaux (CMAKE_ARGS)
+    # Note : --no-cache-dir est important pour éviter de reprendre un wheel précompilé pour la mauvaise architecture
+    python -m pip install --upgrade --force-reinstall --no-cache-dir "llama-cpp-python[server]"
+    
+    # Mise à jour du fichier témoin
+    echo "$CURRENT_MODE" > "$MODE_FILE"
+    success "[INSTALLATION] Installation terminée pour le mode : $CURRENT_MODE"
+
+  else
+    # Le mode est le même, on fait une mise à jour standard (rapide)
+    info "[UPDATE] Vérification des mises à jour (Mode $CURRENT_MODE)..."
+    python -m pip install --upgrade "llama-cpp-python[server]"
+  fi
+
+  # OpenWebUI s'installe normalement (agnostique du GPU)
   python -m pip install --upgrade open-webui
 }
 
-# Fonction de détection, installation et configuration GPU (Nvidia/CUDA)
+# Fonction de détection, installation et configuration GPU (Nvidia/CUDA ou AMD/ROCm)
 configure_gpu_support() {
-  info "[LibreStorien] Vérification de la configuration GPU..."
+  info "[LibreStorien] Analyse du matériel graphique..."
 
-  # 1. Vérification matérielle : Est-ce qu'une carte Nvidia est physiquement là ?
+  # --- A. DÉTECTION NVIDIA ---
   if command -v nvidia-smi >/dev/null 2>&1 && nvidia-smi >/dev/null 2>&1; then
+    info "[GPU] Carte Nvidia détectée."
     
-    # 2. Vérification logicielle : Est-ce que le compilateur CUDA (nvcc) est présent ?
+    # Si nvcc n'est pas là, on utilise la fonction globale pour l'installer
     if ! command -v nvcc >/dev/null 2>&1; then
-      warn "[ATTENTION] GPU Nvidia détecté, mais le 'CUDA Toolkit' (nvcc) est introuvable."
-      info "[LibreStorien] Tentative d'installation automatique du CUDA Toolkit..."
-
-      # --- Tentative d'installation selon l'OS ---
-      if command -v apt >/dev/null 2>&1; then
-        # Ubuntu / Debian / Mint
-        sudo apt update
-        # nvidia-cuda-toolkit est le paquet standard sur Debian/Ubuntu
-        sudo apt install -y nvidia-cuda-toolkit gcc g++
-
-      elif command -v dnf >/dev/null 2>&1; then
-        # Fedora / RHEL
-        # Note : Sur Fedora, cela suppose que les repos proprios sont activés
-        sudo dnf install -y cudatoolkit
-
-      elif command -v pacman >/dev/null 2>&1; then
-        # Arch Linux / Manjaro
-        sudo pacman -Sy --noconfirm cuda
-
-      else
-        error "[ERREUR] Impossible d'installer le CUDA Toolkit automatiquement (OS non géré)."
-        warn "Installez manuellement le toolkit cuda pour votre distribution."
-      fi
+      warn "[ATTENTION] GPU Nvidia présent mais 'nvcc' introuvable."
+      info "[LibreStorien] Tentative d'installation du CUDA Toolkit..."
+      
+      # Appel de la fonction globale : install_sys_package "nom_ubuntu" "nom_fedora" "nom_arch"
+      # Note : gcc et g++ sont souvent requis avec cuda
+      install_sys_package "nvidia-cuda-toolkit gcc g++" "cudatoolkit" "cuda"
     fi
 
-    # 3. Vérification finale et Activation
+    # Vérification finale après tentative d'installation
     if command -v nvcc >/dev/null 2>&1; then
-      # Récupération de la version pour le log
       CUDA_VERSION=$(nvcc --version | grep "release" | sed 's/.*release //; s/,.*//')
-      success "[SUCCÈS] GPU Nvidia actif et CUDA Toolkit détecté (v$CUDA_VERSION)."
-      success "[MODE] Activation de la compilation GPU (CUDA)."
-      
-      # Variables persistantes pour pip : forcent la compilation GPU
+      success "[SUCCÈS] Mode Nvidia CUDA activé (v$CUDA_VERSION)."
       export CMAKE_ARGS="-DGGML_CUDA=on"
       export FORCE_CMAKE=1
+      return
     else
-      error "[ECHEC] Le CUDA Toolkit n'a pas pu être installé ou trouvé."
-      warn "[MODE] Fallback : Le script va continuer en mode CPU (plus lent)."
-      
-      # Nettoyage des variables pour éviter un crash de compilation
-      unset CMAKE_ARGS
-      unset FORCE_CMAKE
+      error "[ECHEC] nvcc manquant malgré la tentative. Fallback CPU."
     fi
-    
+
+  # --- B. DÉTECTION AMD (ROCm) ---
+  # On cherche rocm-smi ou rocminfo
+  elif (command -v rocm-smi >/dev/null 2>&1) || (command -v rocminfo >/dev/null 2>&1); then
+    info "[GPU] Carte AMD (ROCm) détectée."
+
+    # Ajout du path standard ROCm si présent
+    if [[ -d "/opt/rocm/bin" && ":$PATH:" != *":/opt/rocm/bin:"* ]]; then
+        export PATH="/opt/rocm/bin:$PATH"
+    fi
+
+    # Si hipcc n'est pas là, on tente l'installation
+    if ! command -v hipcc >/dev/null 2>&1; then
+      warn "[ATTENTION] GPU AMD détecté mais compilateur 'hipcc' introuvable."
+      info "[LibreStorien] Tentative d'installation du SDK ROCm..."
+      
+      # Note pour AMD : Les paquets dépendent fortement de l'ajout préalable des dépôts AMD (amdgpu-install).
+      # On tente quand même les noms standards.
+      install_sys_package "rocm-hip-sdk" "rocm-hip-sdk" "rocm-hip-sdk"
+    fi
+
+    if command -v hipcc >/dev/null 2>&1; then
+      HIP_VERSION=$(hipcc --version | grep "HIP version" | cut -d: -f2 | xargs)
+      success "[SUCCÈS] Mode AMD ROCm activé (HIP v$HIP_VERSION)."
+      
+      export CMAKE_ARGS="-DGGML_HIPBLAS=on"
+      export CC=$(which clang)
+      export CXX=$(which clang++)
+      export FORCE_CMAKE=1
+      return
+    else
+      error "[ECHEC] 'hipcc' introuvable. Impossible de compiler pour AMD."
+      warn "Conseil : Assurez-vous d'avoir suivi le guide d'installation ROCm officiel (https://rocm.docs.amd.com/)"
+      warn "Fallback CPU."
+    fi
+  
   else
-    # Pas de GPU Nvidia détecté
-    warn "[INFO] Aucun GPU Nvidia actif détecté."
-    info "[MODE] Installation en mode CPU."
-    
-    unset CMAKE_ARGS
-    unset FORCE_CMAKE
+    # --- C. AUCUN GPU ---
+    warn "[INFO] Aucun GPU compatible (Nvidia/AMD) détecté."
   fi
+
+  # --- D. FALLBACK CPU ---
+  info "[MODE] Configuration en mode CPU pur."
+  unset CMAKE_ARGS
+  unset FORCE_CMAKE
 }
 
 # Fonction de nettoyage à la fin
@@ -270,30 +315,10 @@ if [[ ! -f "$MODEL_PATH" ]]; then
 
   DL_TOOL=""
 
-  if command -v curl >/dev/null 2>&1; then
-    DL_TOOL="curl"
-  elif command -v wget >/dev/null 2>&1; then
-    DL_TOOL="wget"
-  else
+  if ! command -v curl >/dev/null 2>&1 && ! command -v wget >/dev/null 2>&1; then
     warn "[LibreStorien] Ni curl ni wget détecté, tentative d'installation..."
-
-    if command -v apt >/dev/null 2>&1; then
-      sudo apt update
-      sudo apt install -y curl
-      DL_TOOL="curl"
-    elif command -v dnf >/dev/null 2>&1; then
-      sudo dnf install -y curl
-      DL_TOOL="curl"
-    elif command -v pacman >/dev/null 2>&1; then
-      sudo pacman -Sy --noconfirm curl
-      DL_TOOL="curl"
-    elif command -v brew >/dev/null 2>&1; then
-      brew install curl
-      DL_TOOL="curl"
-    else
-      error "[ERREUR] Impossible d'installer curl/wget automatiquement. Installer l’un des deux puis relancer."
-      exit 1
-    fi
+    install_sys_package "curl" "curl" "curl"
+    DL_TOOL="curl"
   fi
 
   info "[LibreStorien] Téléchargement du modèle depuis : $HF_URL"
@@ -315,6 +340,24 @@ fi
 if pgrep -f "llama_cpp.server" >/dev/null 2>&1; then
   info "[LibreStorien] llama_cpp.server est déjà en cours d’exécution."
 else
+
+    # Par défaut (CPU ou Nvidia), on active Flash Attention
+    FLASH_ATTN_FLAG="--flash_attn true"
+
+    # Si on est en mode AMD (ROCm) détecté précédemment
+    if [[ "${CMAKE_ARGS:-}" == *"-DGGML_HIPBLAS=on"* ]]; then
+        info "[CONFIG] Configuration spécifique AMD détectée."
+        
+        # 1. Désactiver Flash Attention (souvent instable sur ROCm)
+        FLASH_ATTN_FLAG="" 
+        warn "[CONFIG] AMD : Flash Attention désactivé pour la stabilité."
+
+        # 2. Fix pour les cartes "Consumer" (RX 6000/7000, etc.)
+        # ROCm ne supporte officiellement que les cartes Pro. 
+        # Cette variable force la compatibilité pour beaucoup de cartes RDNA2/3.
+        export HSA_OVERRIDE_GFX_VERSION=10.3.0
+        info "[CONFIG] AMD : HSA_OVERRIDE_GFX_VERSION=10.3.0 appliqué (Support RX 6000/7000)."
+    fi
     info "[LibreStorien] Lancement de llama_cpp.server..."
     cd "$PROJECT_DIR"
     
@@ -330,7 +373,7 @@ else
         --port "$LLAMA_PORT" \
         --n_gpu_layers -1 \
         --n_ctx 16384 \
-        --flash_attn true \
+        $FLASH_ATTN_FLAG \
         > "$PROJECT_DIR/log_llamacpp.txt" 2>&1 &
 
     LLAMA_PID=$!

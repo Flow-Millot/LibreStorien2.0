@@ -37,6 +37,57 @@ LLAMA_PID=""
 OPENWEBUI_PID=""
 
 ##############################
+# Détection OS & Gestionnaire
+##############################
+PKG_MANAGER=""
+INSTALL_CMD=""
+UPDATE_CMD=""
+
+if command -v apt >/dev/null 2>&1; then # Ubuntu / Debian
+    PKG_MANAGER="apt"
+    INSTALL_CMD="sudo apt install -y"
+    UPDATE_CMD="sudo apt update"
+elif command -v dnf >/dev/null 2>&1; then # Fedora
+    PKG_MANAGER="dnf"
+    INSTALL_CMD="sudo dnf install -y"
+    UPDATE_CMD="sudo dnf check-update" # Souvent optionnel mais bon à avoir
+elif command -v pacman >/dev/null 2>&1; then # Arch Linux
+    PKG_MANAGER="pacman"
+    INSTALL_CMD="sudo pacman -Sy --noconfirm"
+    UPDATE_CMD="sudo pacman -Sy"
+elif command -v brew >/dev/null 2>&1; then # MacOS
+    PKG_MANAGER="brew"
+    INSTALL_CMD="brew install"
+    UPDATE_CMD="brew update"
+fi
+
+# Nouvelle version simplifiée de la fonction d'installation
+install_sys_package() {
+  local PKG_APT="${1:-}"
+  local PKG_DNF="${2:-}"
+  local PKG_PACMAN="${3:-}"
+  local PKG_BREW="${4:-}"
+  local PKG_TARGET=""
+
+  case "$PKG_MANAGER" in
+    apt)    PKG_TARGET="$PKG_APT" ;;
+    dnf)    PKG_TARGET="$PKG_DNF" ;;
+    pacman) PKG_TARGET="$PKG_PACMAN" ;;
+    brew)   PKG_TARGET="$PKG_BREW" ;;
+    *)      
+        error "[ERREUR] Gestionnaire de paquets non supporté automatiquement."
+        warn "Veuillez installer manuellement : $PKG_APT (ou équivalent)"
+        return 1 
+        ;;
+  esac
+
+  info "[SYSTEM] Détection de $PKG_MANAGER. Installation de : $PKG_TARGET"
+  if [[ -n "$PKG_TARGET" ]]; then
+      $INSTALL_CMD $PKG_TARGET
+  fi
+}
+
+##############################
 # Fonctions utilitaires      #
 ##############################
 
@@ -50,120 +101,176 @@ error()   { echo -e "${RED}$*${RESET}" >&2; }
 update_python_deps() {
   info "[LibreStorien] Vérification des librairies Python..."
 
-  # Chemin du fichier témoin qui prouve qu'on a déjà installé en mode CUDA
-  CUDA_MARKER="$VENV_DIR/.cuda_installed"
-
-  # CAS 1 : On est en mode GPU (Nvidia détecté)
-  if [[ -n "${FORCE_CMAKE:-}" ]]; then
-    
-    # Si le marker n'existe pas, c'est la première fois ou on vient du mode CPU
-    if [[ ! -f "$CUDA_MARKER" ]]; then
-       info "[INSTALLATION GPU] Première installation avec support CUDA (Cela va prendre quelques minutes)..."
-       # On force la réinstallation pour compiler
-       python -m pip install --upgrade --force-reinstall --no-cache-dir "llama-cpp-python[server]"
-       # On crée le fichier témoin
-       touch "$CUDA_MARKER"
-    else
-       # Le marker existe, on fait juste une mise à jour standard (rapide si rien de neuf)
-       info "[UPDATE GPU] Vérification des mises à jour..."
-       python -m pip install --upgrade "llama-cpp-python[server]"
-    fi
-
-  # CAS 2 : On est en mode CPU
-  else
-    # Si le marker existe, c'est qu'on avait CUDA avant, il faut nettoyer pour repasser en CPU
-    if [[ -f "$CUDA_MARKER" ]]; then
-       warn "[CHANGEMENT] Passage du mode GPU vers CPU détecté. Réinstallation..."
-       python -m pip install --upgrade --force-reinstall "llama-cpp-python[server]"
-       rm "$CUDA_MARKER"
-    else
-       # Installation CPU classique
-       python -m pip install --upgrade "llama-cpp-python[server]"
-    fi
+  # Fichier témoin contenant le mode de la dernière installation (ex: "cuda", "rocm", "cpu")
+  MODE_FILE="$VENV_DIR/.installed_mode"
+  LAST_MODE=""
+  
+  if [[ -f "$MODE_FILE" ]]; then
+    LAST_MODE=$(cat "$MODE_FILE")
   fi
 
-  # OpenWebUI s'installe normalement
+  # Déterminer le mode actuel basé sur la détection faite dans configure_gpu_support
+  CURRENT_MODE="cpu"
+  if [[ "${CMAKE_ARGS:-}" == *"-DGGML_CUDA=on"* ]]; then
+    CURRENT_MODE="cuda"
+  elif [[ "${CMAKE_ARGS:-}" == *"-DGGML_HIPBLAS=on"* ]]; then
+    CURRENT_MODE="rocm"
+  elif [[ "${CMAKE_ARGS:-}" == *"-DGGML_VULKAN=on"* ]]; then
+    CURRENT_MODE="vulkan"
+  fi
+
+  info "[DEPENDANCES] Mode détecté : $CURRENT_MODE (Précédent : ${LAST_MODE:-aucun})"
+
+  # Si le mode a changé ou si c'est la première install
+  if [[ "$CURRENT_MODE" != "$LAST_MODE" ]]; then
+    warn "[CHANGEMENT] Configuration matérielle modifiée ($LAST_MODE -> $CURRENT_MODE). Réinstallation forcée..."
+    
+    # On force la réinstallation pour compiler avec les bons drapeaux (CMAKE_ARGS)
+    # Note : --no-cache-dir est important pour éviter de reprendre un wheel précompilé pour la mauvaise architecture
+    python -m pip install --upgrade --force-reinstall --no-cache-dir "llama-cpp-python[server]"
+    
+    # Mise à jour du fichier témoin
+    echo "$CURRENT_MODE" > "$MODE_FILE"
+    success "[INSTALLATION] Installation terminée pour le mode : $CURRENT_MODE"
+
+  else
+    # Le mode est le même, on fait une mise à jour standard (rapide)
+    info "[UPDATE] Vérification des mises à jour (Mode $CURRENT_MODE)..."
+    python -m pip install --upgrade "llama-cpp-python[server]"
+  fi
+
+  # OpenWebUI s'installe normalement (agnostique du GPU)
   python -m pip install --upgrade open-webui
 }
 
-# Fonction de détection, installation et configuration GPU (Nvidia/CUDA)
+# Fonction de détection, installation et configuration GPU (Nvidia/CUDA ou AMD/ROCm)
 configure_gpu_support() {
-  info "[LibreStorien] Vérification de la configuration GPU..."
+  info "[LibreStorien] Analyse du matériel graphique..."
 
-  # 1. Vérification matérielle : Est-ce qu'une carte Nvidia est physiquement là ?
+  # --- A. DÉTECTION NVIDIA ---
   if command -v nvidia-smi >/dev/null 2>&1 && nvidia-smi >/dev/null 2>&1; then
+    info "[GPU] Carte Nvidia détectée."
     
-    # 2. Vérification logicielle : Est-ce que le compilateur CUDA (nvcc) est présent ?
+    # Si nvcc n'est pas là, on utilise la fonction globale pour l'installer
     if ! command -v nvcc >/dev/null 2>&1; then
-      warn "[ATTENTION] GPU Nvidia détecté, mais le 'CUDA Toolkit' (nvcc) est introuvable."
-      info "[LibreStorien] Tentative d'installation automatique du CUDA Toolkit..."
-
-      # --- Tentative d'installation selon l'OS ---
-      if command -v apt >/dev/null 2>&1; then
-        # Ubuntu / Debian / Mint
-        sudo apt update
-        # nvidia-cuda-toolkit est le paquet standard sur Debian/Ubuntu
-        sudo apt install -y nvidia-cuda-toolkit gcc g++
-
-      elif command -v dnf >/dev/null 2>&1; then
-        # Fedora / RHEL
-        # Note : Sur Fedora, cela suppose que les repos proprios sont activés
-        sudo dnf install -y cudatoolkit
-
-      elif command -v pacman >/dev/null 2>&1; then
-        # Arch Linux / Manjaro
-        sudo pacman -Sy --noconfirm cuda
-
-      else
-        error "[ERREUR] Impossible d'installer le CUDA Toolkit automatiquement (OS non géré)."
-        warn "Installez manuellement le toolkit cuda pour votre distribution."
-      fi
+      warn "[ATTENTION] GPU Nvidia présent mais 'nvcc' introuvable."
+      info "[LibreStorien] Tentative d'installation du CUDA Toolkit..."
+      
+      # Appel de la fonction globale : install_sys_package "nom_ubuntu" "nom_fedora" "nom_arch"
+      # Note : gcc et g++ sont souvent requis avec cuda
+      install_sys_package "nvidia-cuda-toolkit gcc g++" "cudatoolkit" "cuda"
     fi
 
-    # 3. Vérification finale et Activation
+    # Vérification finale après tentative d'installation
     if command -v nvcc >/dev/null 2>&1; then
-      # Récupération de la version pour le log
       CUDA_VERSION=$(nvcc --version | grep "release" | sed 's/.*release //; s/,.*//')
-      success "[SUCCÈS] GPU Nvidia actif et CUDA Toolkit détecté (v$CUDA_VERSION)."
-      success "[MODE] Activation de la compilation GPU (CUDA)."
-      
-      # Variables persistantes pour pip : forcent la compilation GPU
+      success "[SUCCÈS] Mode Nvidia CUDA activé (v$CUDA_VERSION)."
       export CMAKE_ARGS="-DGGML_CUDA=on"
       export FORCE_CMAKE=1
+      return
     else
-      error "[ECHEC] Le CUDA Toolkit n'a pas pu être installé ou trouvé."
-      warn "[MODE] Fallback : Le script va continuer en mode CPU (plus lent)."
-      
-      # Nettoyage des variables pour éviter un crash de compilation
-      unset CMAKE_ARGS
-      unset FORCE_CMAKE
+      error "[ECHEC] nvcc manquant malgré la tentative. Fallback CPU."
     fi
+
+  # --- B. DÉTECTION AMD (ROCm) ---
+  # On cherche rocm-smi ou rocminfo
+  elif (command -v rocm-smi >/dev/null 2>&1) || (command -v rocminfo >/dev/null 2>&1); then
+    info "[GPU] Carte AMD (ROCm) détectée."
+
+    # Ajout du path standard ROCm si présent
+    if [[ -d "/opt/rocm/bin" && ":$PATH:" != *":/opt/rocm/bin:"* ]]; then
+        export PATH="/opt/rocm/bin:$PATH"
+    fi
+
+    # Si hipcc n'est pas là, on tente l'installation
+    if ! command -v hipcc >/dev/null 2>&1; then
+      warn "[ATTENTION] GPU AMD détecté mais compilateur 'hipcc' introuvable."
+      info "[LibreStorien] Tentative d'installation du SDK ROCm..."
+      
+      # Note pour AMD : Les paquets dépendent fortement de l'ajout préalable des dépôts AMD (amdgpu-install).
+      # On tente quand même les noms standards.
+      install_sys_package "rocm-hip-sdk" "rocm-hip-sdk" "rocm-hip-sdk"
+    fi
+
+    if command -v hipcc >/dev/null 2>&1; then
+      HIP_VERSION=$(hipcc --version | grep "HIP version" | cut -d: -f2 | xargs)
+      success "[SUCCÈS] Mode AMD ROCm activé (HIP v$HIP_VERSION)."
+      
+      export CMAKE_ARGS="-DGGML_HIPBLAS=on"
+      export CC=$(which clang)
+      export CXX=$(which clang++)
+      export FORCE_CMAKE=1
+      return
+    else
+      error "[ECHEC] 'hipcc' introuvable. Impossible de compiler pour AMD."
+      warn "Conseil : Assurez-vous d'avoir suivi le guide d'installation ROCm officiel (https://rocm.docs.amd.com/)"
+      warn "Fallback CPU."
+    fi
+  
+  # --- C. DÉTECTION VULKAN (WSL2 / Fallback AMD) ---
+  # Si on est sous WSL2 (libd3d12.so présent) ou si vulkaninfo existe
+  elif [[ -f "/usr/lib/wsl/lib/libd3d12.so" ]] || command -v vulkaninfo >/dev/null 2>&1; then
+    info "[GPU] Support Vulkan détecté (WSL2 ou GPU générique)."
     
+    # Installation des dépendances Vulkan si nécessaire
+    if ! command -v vulkaninfo >/dev/null 2>&1 || ! command -v glslc >/dev/null 2>&1; then
+        warn "[ATTENTION] Outils Vulkan manquants (vulkaninfo ou glslc)."
+        info "[LibreStorien] Installation de vulkan-tools, libvulkan-dev, mesa-vulkan-drivers et glslc..."
+        install_sys_package "vulkan-tools libvulkan-dev mesa-vulkan-drivers glslc" "vulkan-tools vulkan-loader-devel mesa-vulkan-drivers glslc" "vulkan-tools vulkan-headers mesa-vulkan-drivers shaderc"
+    fi
+
+    success "[SUCCÈS] Mode Vulkan activé."
+    export CMAKE_ARGS="-DGGML_VULKAN=on"
+    export FORCE_CMAKE=1
+    return
+
   else
-    # Pas de GPU Nvidia détecté
-    warn "[INFO] Aucun GPU Nvidia actif détecté."
-    info "[MODE] Installation en mode CPU."
-    
-    unset CMAKE_ARGS
-    unset FORCE_CMAKE
+    # --- D. AUCUN GPU ---
+    warn "[INFO] Aucun GPU compatible (Nvidia/AMD/Vulkan) détecté."
+  fi
+
+  # --- D. FALLBACK CPU ---
+  info "[MODE] Configuration en mode CPU pur."
+  unset CMAKE_ARGS
+  unset FORCE_CMAKE
+}
+
+# Fonction de téléchargement agnostique (curl ou wget)
+download_file() {
+  local URL="$1"
+  local DEST="$2"
+
+  if command -v curl >/dev/null 2>&1; then
+    curl -L "$URL" -o "$DEST"
+  elif command -v wget >/dev/null 2>&1; then
+    wget -O "$DEST" "$URL"
+  else
+    warn "[LibreStorien] Ni curl ni wget détecté, tentative d'installation..."
+    install_sys_package "curl" "curl" "curl" "curl"
+    # Récursion : on réessaie après installation
+    if command -v curl >/dev/null 2>&1; then
+        curl -L "$URL" -o "$DEST"
+    else
+        error "[ERREUR] Impossible de télécharger (outils manquants)."
+        return 1
+    fi
   fi
 }
 
 # Fonction de nettoyage à la fin
+kill_service() {
+    local PID="$1"
+    local NAME="$2"
+    if [[ -n "$PID" ]] && kill -0 "$PID" 2>/dev/null; then
+        kill "$PID" >/dev/null 2>&1
+        success "[LibreStorien] $NAME arrêté (PID $PID)."
+    fi
+}
+
 cleanup() {
   info "[LibreStorien] Arrêt des services..."
-
-  if [[ -n "${LLAMA_PID:-}" ]]; then
-    if kill "$LLAMA_PID" >/dev/null 2>&1; then
-      success "[LibreStorien] llama_cpp.server arrêté (PID $LLAMA_PID)."
-    fi
-  fi
-
-  if [[ -n "${OPENWEBUI_PID:-}" ]]; then
-    if kill "$OPENWEBUI_PID" >/dev/null 2>&1; then
-      success "[LibreStorien] OpenWebUI arrêté (PID $OPENWEBUI_PID)."
-    fi
-  fi
+  kill_service "${LLAMA_PID:-}" "llama_cpp.server"
+  kill_service "${OPENWEBUI_PID:-}" "OpenWebUI"
 }
 # Nettoyage quand le script se termine ou lors d'un Ctrl+C
 trap cleanup EXIT INT TERM
@@ -177,32 +284,30 @@ PYTHON_BIN="python3.11"
 if ! command -v "$PYTHON_BIN" >/dev/null 2>&1; then
     warn "[LibreStorien] python3.11 introuvable. Tentative d'installation..."
 
-    # --- Ubuntu / Debian ---
-    if command -v apt >/dev/null 2>&1; then
-        sudo apt update
-        sudo apt install -y software-properties-common
-        sudo add-apt-repository -y ppa:deadsnakes/ppa
-        sudo apt update
-        sudo apt install -y python3.11 python3.11-venv python3.11-distutils
-
-    # --- Fedora ---
-    elif command -v dnf >/dev/null 2>&1; then
-        sudo dnf install -y python3.11 python3.11-devel
-
-    # --- Arch Linux ---
-    elif command -v pacman >/dev/null 2>&1; then
-        sudo pacman -Sy --noconfirm python311
-
-    # --- macOS (Homebrew) ---
-    elif command -v brew >/dev/null 2>&1; then
-        brew install python@3.11
-        brew link python@3.11 --force
-
-    else
-        error "[ERREUR] Impossible d'installer python3.11 automatiquement (OS non détecté)."
-        warn "Installe python3.11 manuellement puis relance."
-        exit 1
-    fi
+    case "$PKG_MANAGER" in
+        apt)
+            $UPDATE_CMD
+            $INSTALL_CMD software-properties-common
+            sudo add-apt-repository -y ppa:deadsnakes/ppa
+            $UPDATE_CMD
+            $INSTALL_CMD python3.11 python3.11-venv python3.11-distutils
+            ;;
+        dnf)
+            $INSTALL_CMD python3.11 python3.11-devel
+            ;;
+        pacman)
+            $INSTALL_CMD python311
+            ;;
+        brew)
+            $INSTALL_CMD python@3.11
+            brew link python@3.11 --force
+            ;;
+        *)
+            error "[ERREUR] Impossible d'installer python3.11 automatiquement (OS non détecté)."
+            warn "Installe python3.11 manuellement puis relance."
+            exit 1
+            ;;
+    esac
 
     # Re-vérifier
     if ! command -v "$PYTHON_BIN" >/dev/null 2>&1; then
@@ -217,17 +322,13 @@ info "[LibreStorien] python3.11 disponible : $(which python3.11)"
 # Dépendances système pour llama-cpp (Ubuntu)
 ##############################################
 
-if command -v apt >/dev/null 2>&1; then
-  info "[LibreStorien] Vérification des dépendances système pour llama-cpp (build-essential, cmake, python3.11-dev)..."
+info "[LibreStorien] Vérification des dépendances système pour llama-cpp (build-essential, cmake, python3.11-dev)..."
 
-  if ! dpkg -s build-essential cmake python3.11-dev >/dev/null 2>&1; then
-    info "[LibreStorien] Installation des dépendances système nécessaires à llama-cpp..."
-    sudo apt update
-    sudo apt install -y build-essential cmake python3.11-dev
-  else
-    info "[LibreStorien] Dépendances système déjà installées."
-  fi
-fi
+install_sys_package \
+  "build-essential cmake python3.11-dev" \
+  "gcc-c++ cmake python3.11-devel" \
+  "base-devel cmake" \
+  "cmake"
 
 ################################
 # 1. Création / activation venv #
@@ -241,6 +342,13 @@ fi
 info "[LibreStorien] Activation de la venv existante..."
 # shellcheck disable=SC1090
 source "$VENV_DIR/bin/activate"
+
+# Configuration pour WSL2 (accès aux drivers Windows)
+# On le fait après l'activation du venv pour être sûr
+if [[ -d "/usr/lib/wsl/lib" ]]; then
+    info "[CONFIG] WSL2 détecté. Ajout de /usr/lib/wsl/lib au LD_LIBRARY_PATH."
+    export LD_LIBRARY_PATH="/usr/lib/wsl/lib:${LD_LIBRARY_PATH:-}"
+fi
 
 info "[LibreStorien] Mise à jour de pip..."
 python -m pip install --upgrade pip
@@ -266,44 +374,14 @@ fi
 
 if [[ ! -f "$MODEL_PATH" ]]; then
   warn "[LibreStorien] Modèle introuvable localement, téléchargement depuis Hugging Face..."
+  
+  # Création du dossier si nécessaire
   mkdir -p "$(dirname "$MODEL_PATH")"
 
-  DL_TOOL=""
-
-  if command -v curl >/dev/null 2>&1; then
-    DL_TOOL="curl"
-  elif command -v wget >/dev/null 2>&1; then
-    DL_TOOL="wget"
-  else
-    warn "[LibreStorien] Ni curl ni wget détecté, tentative d'installation..."
-
-    if command -v apt >/dev/null 2>&1; then
-      sudo apt update
-      sudo apt install -y curl
-      DL_TOOL="curl"
-    elif command -v dnf >/dev/null 2>&1; then
-      sudo dnf install -y curl
-      DL_TOOL="curl"
-    elif command -v pacman >/dev/null 2>&1; then
-      sudo pacman -Sy --noconfirm curl
-      DL_TOOL="curl"
-    elif command -v brew >/dev/null 2>&1; then
-      brew install curl
-      DL_TOOL="curl"
-    else
-      error "[ERREUR] Impossible d'installer curl/wget automatiquement. Installer l’un des deux puis relancer."
-      exit 1
-    fi
-  fi
-
   info "[LibreStorien] Téléchargement du modèle depuis : $HF_URL"
-  if [[ "$DL_TOOL" == "curl" ]]; then
-    curl -L "$HF_URL" -o "$MODEL_PATH"
-  else
-    wget -O "$MODEL_PATH" "$HF_URL"
-  fi
-
-  if [[ ! -f "$MODEL_PATH" ]]; then
+  
+  # Appel de notre nouvelle fonction simplifiée
+  if ! download_file "$HF_URL" "$MODEL_PATH"; then
     error "[ERREUR] Échec du téléchargement du modèle depuis $HF_URL"
     exit 1
   fi
@@ -315,6 +393,67 @@ fi
 if pgrep -f "llama_cpp.server" >/dev/null 2>&1; then
   info "[LibreStorien] llama_cpp.server est déjà en cours d’exécution."
 else
+
+    # Par défaut (CPU ou Nvidia), on active Flash Attention
+    FLASH_ATTN_FLAG="--flash_attn true"
+
+    # Si on est en mode AMD (ROCm) détecté précédemment
+    if [[ "${CMAKE_ARGS:-}" == *"-DGGML_HIPBLAS=on"* ]]; then
+        info "[CONFIG] Configuration spécifique AMD détectée."
+        
+        # 1. Désactiver Flash Attention (souvent instable sur ROCm)
+        FLASH_ATTN_FLAG="" 
+        warn "[CONFIG] AMD : Flash Attention désactivé pour la stabilité."
+
+        # 2. Fix pour les cartes "Consumer" (RX 6000/7000, etc.)
+        # ROCm ne supporte officiellement que les cartes Pro. 
+        # Cette variable force la compatibilité pour beaucoup de cartes RDNA2/3.
+        export HSA_OVERRIDE_GFX_VERSION=10.3.0
+        info "[CONFIG] AMD : HSA_OVERRIDE_GFX_VERSION=10.3.0 appliqué (Support RX 6000/7000)."
+    
+    elif [[ "${CMAKE_ARGS:-}" == *"-DGGML_VULKAN=on"* ]]; then
+        info "[CONFIG] Configuration Vulkan détectée."
+        FLASH_ATTN_FLAG=""
+        warn "[CONFIG] Vulkan : Flash Attention désactivé."
+        
+        # DEBUG: Vérifier la visibilité du GPU
+        info "[DEBUG] Vérification de l'accès GPU Vulkan..."
+        
+        # On construit le chemin de librairie incluant WSL
+        LIB_PATH="/usr/lib/wsl/lib"
+        if [[ -n "${LD_LIBRARY_PATH:-}" ]]; then
+            LIB_PATH="$LIB_PATH:$LD_LIBRARY_PATH"
+        fi
+        
+        # Vérification de la présence du driver dzn (Microsoft Dozen) - UNIQUEMENT POUR WSL2
+        if [[ -f "/usr/lib/wsl/lib/libd3d12.so" ]]; then
+            if ! ls /usr/share/vulkan/icd.d/*dzn*.json >/dev/null 2>&1; then
+                warn "[ATTENTION] Driver Vulkan 'dzn' (Microsoft Dozen) introuvable."
+                warn "Ce driver est nécessaire pour l'accélération GPU sous WSL2."
+                
+                # Tentative d'installation automatique si apt est dispo
+                if command -v apt-add-repository >/dev/null 2>&1; then
+                     info "[LibreStorien] Ajout du PPA kisak-mesa et mise à jour des drivers..."
+                     sudo add-apt-repository -y ppa:kisak/kisak-mesa
+                     sudo apt update
+                     sudo apt install -y mesa-vulkan-drivers
+                else
+                     error "Veuillez installer 'mesa-vulkan-drivers' depuis un PPA compatible (ex: kisak-mesa)."
+                fi
+            fi
+
+            # Force l'utilisation du driver Mesa "Dozen" (dzn) qui traduit Vulkan -> D3D12 (WSL2)
+            export MESA_LOADER_DRIVER_OVERRIDE=dzn
+            info "[CONFIG] Force MESA_LOADER_DRIVER_OVERRIDE=dzn pour WSL2."
+        fi
+        
+        # Test rapide de détection GPU
+        if env LD_LIBRARY_PATH="$LIB_PATH" vulkaninfo --summary > /dev/null 2>&1; then
+             success "[SUCCÈS] GPU Vulkan détecté."
+        else
+             warn "[ATTENTION] vulkaninfo a échoué, mais on tente le lancement quand même."
+        fi
+    fi
     info "[LibreStorien] Lancement de llama_cpp.server..."
     cd "$PROJECT_DIR"
     
@@ -324,13 +463,20 @@ else
 
     #--n_ctx 16384 \
     
-    python -m llama_cpp.server \
+    # Construction du LD_LIBRARY_PATH final pour le serveur
+    SERVER_LIB_PATH="/usr/lib/wsl/lib"
+    if [[ -n "${LD_LIBRARY_PATH:-}" ]]; then
+        SERVER_LIB_PATH="$SERVER_LIB_PATH:$LD_LIBRARY_PATH"
+    fi
+
+    # Force LD_LIBRARY_PATH pour la commande python au cas où
+    env LD_LIBRARY_PATH="$SERVER_LIB_PATH" python -m llama_cpp.server \
         --model "$MODEL_PATH" \
         --host 127.0.0.1 \
         --port "$LLAMA_PORT" \
         --n_gpu_layers -1 \
         --n_ctx 16384 \
-        --flash_attn true \
+        $FLASH_ATTN_FLAG \
         > "$PROJECT_DIR/log_llamacpp.txt" 2>&1 &
 
     LLAMA_PID=$!
@@ -416,6 +562,8 @@ success "[LibreStorien] Lancement terminé."
 # Si on a lancé au moins un des services, on attend qu'ils se terminent
 if [[ -n "${LLAMA_PID:-}" || -n "${OPENWEBUI_PID:-}" ]]; then
   info "[LibreStorien] Les services s'arrêteront lors de la fermeture cette fenêtre ou grâce à Ctrl+C."
+  warn "[LibreStorien] Veuillez attendre quelques minutes le temps que OpenWeb UI installe l'embedding model et le reranker au premier lancement."
+  info "[LibreStorien] Logs : log_llamacpp.txt et log_openwebui.txt"
   # On attend les process lancés (ceci garde le script vivant)
   wait ${LLAMA_PID:-} ${OPENWEBUI_PID:-} 2>/dev/null || true
 else

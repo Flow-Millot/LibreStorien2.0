@@ -14,16 +14,43 @@ Il repose sur :
 L'objectif :
 *Avoir un assistant administratif fiable, reproductible, flexible et strictement basé sur les documents de l'association.*
 
-# 1. Launcher automatique (OpenWebUI + llama.cpp)
+# 0 - Prérequis et Avertissements
 
-Ce projet inclut un launcher complet qui permet de démarrer l’environnement simplement en exécutant le fichier `launcher.sh`. Ce fichier permet l'installation sur les distributions et plateformes suivantes :
-- Ubuntu / Debian
-- Fedora
-- Arch Linux
-- macOS (Homebrew)
-- Windows depuis WSL2
+Ce projet utilise un modèle d'intelligence artificielle local (LLM et RAG). Contrairement à un site web classique, il nécessite des ressources matérielles conséquentes pour fonctionner de manière fluide.
 
-Ce launcher a un objectif principal :
+## 0.1 - Configuration Matérielle
+
+L'outil est configuré pour tourner localement sur votre machine. Voici ce qu'il faut pour une expérience acceptable :
+
+| Composant | Configuration Minimale (Lent) | Configuration Recommandée (Fluide) |
+| :--- | :--- | :--- |
+| **Processeur (CPU)** | Récent (AMD Ryzen 5 / Intel i5 / puce M2 Apple) | Récent (AMD Ryzen 7 / Intel i7 / puce M4 Apple) |
+| **Mémoire Vive (RAM)** | 16 Go DDR4 | 32 Go DDR4/DDR5 |
+| **Carte Graphique (GPU)** | Aucune (pour puce M4 seulement) ou AMD avec 12 Go VRAM | Nvidia RTX avec 12 Go VRAM |
+| **Stockage** | 10 Go d'espace libre | 10 Go d'espace libre |
+
+> **Note sur la VRAM :** Le projet est optimisé pour utiliser environ **12 Go de mémoire vidéo (VRAM)**. Si vous avez moins (ex: 6 Go ou 8 Go), le système basculera une partie du calcul sur le processeur, ce qui ralentira considérablement la génération des réponses.
+
+## 0.2 - Prérequis Logiciels
+* **Système d'exploitation :** Linux (Ubuntu/Debian/Fedora/Arch), macOS (Homebrew) ou Windows via WSL2.
+* **Pilotes :** Si vous avez une carte Nvidia, les **drivers CUDA 12+** doivent être installés.
+* **Connexion Internet :** Requise uniquement pour le premier lancement (téléchargement des modèles).
+
+## 0.3 - Avertissement : Le Premier Lancement
+
+**Soyez patient lors de la première exécution du script `launcher.sh`.**
+
+Le système doit télécharger automatiquement plusieurs modèles volumineux avant de pouvoir afficher l'interface :
+1.  Le modèle (phi-4-Q4_K_M)
+2.  Le modèle d'Embedding (OrdalieTech/Solon-embeddings-large-0.1)
+3.  Le modèle de Reranking (BAAI/bge-reranker-v2-m3)
+
+**Temps estimé :** Entre 2 et 10 minutes selon votre connexion fibre/ADSL.
+*Ne fermez pas le terminal si rien ne semble bouger, le téléchargement se fait en arrière-plan. Vous pouvez voir la progression du téléchargement dans les logs OpenWeb UI*
+
+# 1 - Launcher automatique (OpenWebUI + llama.cpp)
+
+Ce projet inclut un launcher complet qui permet de démarrer l’environnement simplement en exécutant le fichier `launcher.sh`. Ce launcher a un objectif principal :
 
 **démarrer automatiquement l’environnement IA libre et local LibreStorien** :
 
@@ -41,33 +68,33 @@ bash launcher.sh
 * Ouvre automatiquement l'UI dans le navigateur
 * Attendre quelques instants pour voir apparaitre l'interface (le temps que tous les services soient up)
 
-### Services lancés
+## 1.1 - Services lancés
 
 | Service          | Port      | Fonction                                          |
 | ---------------- | --------- | ------------------------------------------------- |
 | llama_cpp.server | **10000** | Inférence OpenAI-compatible servie par le modèle GGUF   |
 | OpenWebUI        | **8080**  | Interface utilisateur, gestion RAG, knowledge, UI |
 
-### Lire les logs
+## 1.2 - Lire les logs
 
 * `log_llamacpp.txt` -> logs du modèle local
 * `log_openwebui.txt` -> logs OpenWebUI
 
-### Arrêt contrôlé
+## 1.3 - Arrêt contrôlé
 
 Le script capture `Ctrl+C` ou fermeture terminal ->
 Il tue proprement les processus lancés et vide la RAM du modèle chargé.
 
-### Ouvrir OpenWebUI
+## 1.4 - Ouvrir OpenWebUI
 [http://127.0.0.1:8080](http://127.0.0.1:8080)
 
 # 2. Configuration Connaissance (RAG) + Assistant LibreStorien
 
-## Installation manuelle simple
-
 Une fois l'interface lancée, aller dans :
 
-Espace de travail -> Connaissance -> Créer une connaissance
+1. Espace de travail
+2. Connaissance
+3. Créer une connaissance
 
 Nommez-la "Activités [Année en cours]"
 
@@ -83,13 +110,13 @@ Voici le format des activités pour aider le modèle à sélectionner les bons s
 **Description :** Rencontre autour des travaux de l’April, FSF, FSFE et La Quadrature Du Net.
 ```
 
-# 3. Création manuelle du modèle custom LibreStorien
+# 3. Création du modèle custom LibreStorien
 
 Une fois la Connaissance prête, il est temps de créer le modèle associé. Aller dans :
 
-Espace de Travail -> Modèles -> Nouveau Modèle
-
-## 1. Remplir les champs suivants :
+1. Espace de Travail
+2. Modèles
+3. Nouveau Modèle
 
 - #### Nom du modèle
 
@@ -137,9 +164,9 @@ Arrête-toi immédiatement après la Partie 6. N'écris jamais de "Conclusion" o
 Adopte un ton institutionnel, neutre mais valorisant pour le bénévolat. Utilise le passé car il s'agit d'activités passées.
 ```
 
-- ### Prompt par défaut
+- #### Prompt par défaut
 
-(Fortement conseillé) Possibilité de rajouter une suggestion de prompt au moment de la création d'une nouvelle conversation avec ce modèle.
+**(Fortement conseillé)** Possibilité de rajouter une suggestion de prompt au moment de la création d'une nouvelle conversation avec ce modèle.
 
 Cliquer sur Ajouter, puis placer ce texte dans "prompt" :
 
@@ -147,11 +174,11 @@ Cliquer sur Ajouter, puis placer ce texte dans "prompt" :
 Liste exhaustivement toutes les activités dont le Type contient le mot "Permanence".
 ```
 
-- ### Connaissances
+- #### Connaissances
 
 Sélectionner la Connaissance préalablement chargée.
 
-- ### Capacités
+- #### Capacités
 
 Décocher ou cocher les outils souhaités.
 Par exemple, dans ce contexte il faut éviter :
@@ -159,15 +186,15 @@ Par exemple, dans ce contexte il faut éviter :
 - Génération d'images
 - Interpréteur de code
 
-# Utilisation pour le Rapport d'activité
+# 4 - Utilisation pour le Rapport d'activité
 
-1. Aller dans **Conversations**
+1. Aller dans Conversations
 2. Créer une nouvelle conversation
 3. Sélectionner le modèle avec le nom préalablement choisi
 
 Le modèle est prêt à être interrogé.
 
-# Guide d'utilisation
+# 5 - Guide d'utilisation
 
 Les activités ont chacune un Type associé, dont voici la liste complète :
 
@@ -195,19 +222,19 @@ Liste exhaustivement toutes les activités dont le Type contient le mot "Permane
 
 Puis refaire la même opération en changeant simplement le type.
 
-# Ouverture
+# 6 - Ouverture
 
 En suivant cette procédure, il est ainsi possible de créer une Connaissance et un modèle pour chaque type de document désiré. Il faudra cependant adapter le prompt system du modèle, et peut-être certains paramétrages dans le panneau administrateur, suivant le besoin et la taille des documents de la Connaissance.
 
 De plus, il est tout à fait possible de sélectionner le modèle de base chargé par défaut dans l'interface et de lui poser directement des questions sur un document qu'on aura joint avec le prompt (ex : questionner un document Appel d'Offres pour connaitre les informations qu'il contient).
 
-# Questionnaire amélioration et retour client
+# 7 - Questionnaire amélioration et retour client
 
 Nous souhaitons recueillir votre retour pour mesurer l'impact de notre solution et valider ou non nos critères de succès.
 
 [Lien vers le questionnaire](https://framaforms.org/questionnaire-de-satisfaction-librestorien20-1765287993)
 
-# Optionnel - Création automatique d’un raccourci d’application (.desktop) Linux
+# 8 - Optionnel: Création automatique d’un raccourci d’application (.desktop) Linux
 
 Ce script permet de générer automatiquement un raccourci d'application Linux pour lancer LibreStorien (ou tout autre script).
 Il crée :
@@ -219,7 +246,7 @@ Il crée :
 
 Cela permet de lancer l'assistant IA comme une application native, sans passer par le terminal.
 
-## 1. Fonction du script
+## 8.1 - Fonction du script
 
 Le script :
 
@@ -231,7 +258,7 @@ Le script :
 6. copie ce raccourci sur le bureau
 7. rend le tout exécutable
 
-## 2. Pré-requis
+## 8.2 - Pré-requis
 
 Placer dans le **même dossier** :
 
@@ -247,7 +274,7 @@ Ensuite rendre le script exécutable :
 chmod +x creation_raccourci.sh
 ```
 
-## 3. Utilisation
+## 8.3 - Utilisation
 
 Lancer simplement :
 
@@ -265,7 +292,7 @@ Le script :
 ~/Desktop/<nom>.desktop  (ou ~/Bureau selon la langue)
 ```
 
-## 4. Contenu généré du fichier .desktop
+## 8.4 - Contenu généré du fichier .desktop
 
 Le script génère automatiquement un fichier du type :
 
@@ -290,7 +317,7 @@ Il est exécutable et reconnu par les environnements de bureau :
 * Mate
 * Deepin
 
-## 5. Exécution sécurisée
+## 8.5 - Exécution sécurisée
 
 Le script :
 
@@ -298,7 +325,7 @@ Le script :
 * copie uniquement dans les emplacements utilisateur
 * respecte les conventions Freedesktop
 
-## 6. Suppression du raccourci
+## 8.6 - Suppression du raccourci
 
 Pour supprimer le raccourci d’application :
 

@@ -505,7 +505,7 @@ else
     ENABLE_WEB_SEARCH="False" \
     OPENAI_API_BASE_URL="http://127.0.0.1:${LLAMA_PORT}/v1" \
     MODEL_TEMPERATURE="0.1" \
-    RAG_EMBEDDING_MODEL="OrdalieTech/Solon-embeddings-large-0.1" \
+    RAG_EMBEDDING_MODEL="OrdalieTech/Solon-embeddings-base-0.1" \
     CHUNK_SIZE="500" \
     CHUNK_OVERLAP="50" \
     RAG_TOP_K="99" \

@@ -26,7 +26,7 @@ L'outil est configuré pour tourner localement sur votre machine. Voici ce qu'il
 | :--- | :--- | :--- |
 | **Processeur (CPU)** | Récent (AMD Ryzen 5 / Intel i5 / puce M2 Apple) | Récent (AMD Ryzen 7 / Intel i7 / puce M4 Apple) |
 | **Mémoire Vive (RAM)** | 16 Go DDR4 | 32 Go DDR4/DDR5 |
-| **Carte Graphique (GPU)** | Aucune (pour puce M4 seulement) ou AMD avec 12 Go VRAM | Nvidia RTX avec 12 Go VRAM |
+| **Carte Graphique (GPU)** | Aucune (pour puce M4 seulement) ou AMD avec 12 Go VRAM | Nvidia RTX avec 16 Go VRAM |
 | **Stockage** | 10 Go d'espace libre | 10 Go d'espace libre |
 
 > **Note sur la VRAM :** Le projet est optimisé pour utiliser environ **12 Go de mémoire vidéo (VRAM)**. Si vous avez moins (ex: 6 Go ou 8 Go), le système basculera une partie du calcul sur le processeur, ce qui ralentira considérablement la génération des réponses.

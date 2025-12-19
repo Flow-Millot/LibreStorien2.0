@@ -55,7 +55,7 @@ elif command -v pacman >/dev/null 2>&1; then # Arch Linux
     PKG_MANAGER="pacman"
     INSTALL_CMD="sudo pacman -Sy --noconfirm"
     UPDATE_CMD="sudo pacman -Sy"
-elif command -v brew >/dev/null 2>&1; then # Ajout pour macOS
+elif command -v brew >/dev/null 2>&1; then # MacOS
     PKG_MANAGER="brew"
     INSTALL_CMD="brew install"
     UPDATE_CMD="brew update"

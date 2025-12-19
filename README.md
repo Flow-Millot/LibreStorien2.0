@@ -14,8 +14,6 @@ Il repose sur :
 L'objectif :
 *Avoir un assistant administratif fiable, reproductible, flexible et strictement basé sur les documents de l'association.*
 
----
-
 # 1. Launcher automatique (OpenWebUI + llama.cpp)
 
 Ce projet inclut un launcher complet qui permet de démarrer l’environnement simplement en exécutant le fichier `launcher.sh`. Ce fichier permet l'installation sur les distributions et plateformes suivantes :
@@ -34,6 +32,7 @@ bash launcher.sh
 ```
 
 * Vérifie ou installe Python 3.11 (version compatible avec OpenWebUI)
+* Détecte la configuration (CPU/GPU NVIDIA/GPU AMD)
 * Crée la venv
 * Installe `llama-cpp-python[server]` et `open-webui`
 * Télécharge le modèle si nécessaire (phi-4-Q4_K_M.gguf par défaut, changer le nom dans le script si nécessaire)
@@ -62,8 +61,6 @@ Il tue proprement les processus lancés et vide la RAM du modèle chargé.
 ### Ouvrir OpenWebUI
 [http://127.0.0.1:8080](http://127.0.0.1:8080)
 
----
-
 # 2. Configuration Connaissance (RAG) + Assistant LibreStorien
 
 ## Installation manuelle simple
@@ -74,7 +71,7 @@ Espace de travail -> Connaissance -> Créer une connaissance
 
 Nommez-la "Activités [Année en cours]"
 
-Et déposer le fichier **activites.md** contenant toutes les activités formatées de l'année 2025 dans cet espace. Le modèle s'appuiera sur le contenu de ce document pour répondre.
+Et déposer le fichier **activites/activites.md** contenant toutes les activités formatées de l'année 2025 dans cet espace. Le modèle s'appuiera sur le contenu de ce document pour répondre.
 
 Voici le format des activités pour aider le modèle à sélectionner les bons sujets :
 
@@ -93,8 +90,6 @@ Une fois la Connaissance prête, il est temps de créer le modèle associé. All
 Espace de Travail -> Modèles -> Nouveau Modèle
 
 ## 1. Remplir les champs suivants :
-
----
 
 - #### Nom du modèle
 
@@ -164,8 +159,6 @@ Par exemple, dans ce contexte il faut éviter :
 - Génération d'images
 - Interpréteur de code
 
----
-
 # Utilisation pour le Rapport d'activité
 
 1. Aller dans **Conversations**
@@ -226,8 +219,6 @@ Il crée :
 
 Cela permet de lancer l'assistant IA comme une application native, sans passer par le terminal.
 
----
-
 ## 1. Fonction du script
 
 Le script :
@@ -239,8 +230,6 @@ Le script :
 5. génère un fichier `.desktop` correctement formaté
 6. copie ce raccourci sur le bureau
 7. rend le tout exécutable
-
----
 
 ## 2. Pré-requis
 
@@ -257,8 +246,6 @@ Ensuite rendre le script exécutable :
 ```bash
 chmod +x creation_raccourci.sh
 ```
-
----
 
 ## 3. Utilisation
 
@@ -277,8 +264,6 @@ Le script :
 ~/.local/share/applications/<nom>.desktop
 ~/Desktop/<nom>.desktop  (ou ~/Bureau selon la langue)
 ```
-
----
 
 ## 4. Contenu généré du fichier .desktop
 
@@ -305,8 +290,6 @@ Il est exécutable et reconnu par les environnements de bureau :
 * Mate
 * Deepin
 
----
-
 ## 5. Exécution sécurisée
 
 Le script :
@@ -314,8 +297,6 @@ Le script :
 * n’écrase pas de fichier `.desktop` système
 * copie uniquement dans les emplacements utilisateur
 * respecte les conventions Freedesktop
-
----
 
 ## 6. Suppression du raccourci
 

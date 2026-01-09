@@ -127,7 +127,7 @@ update_python_deps() {
     
     # On force la réinstallation pour compiler avec les bons drapeaux (CMAKE_ARGS)
     # Note : --no-cache-dir est important pour éviter de reprendre un wheel précompilé pour la mauvaise architecture
-    python -m pip install --upgrade --force-reinstall --no-cache-dir "llama-cpp-python[server]"
+    uv pip install --upgrade --force-reinstall --no-cache-dir "llama-cpp-python[server]"
     
     # Mise à jour du fichier témoin
     echo "$CURRENT_MODE" > "$MODE_FILE"
@@ -136,11 +136,11 @@ update_python_deps() {
   else
     # Le mode est le même, on fait une mise à jour standard (rapide)
     info "[UPDATE] Vérification des mises à jour (Mode $CURRENT_MODE)..."
-    python -m pip install --upgrade "llama-cpp-python[server]"
+    uv pip install --upgrade "llama-cpp-python[server]"
   fi
 
   # OpenWebUI s'installe normalement (agnostique du GPU)
-  python -m pip install --upgrade open-webui
+  uv pip install --upgrade open-webui
 }
 
 # Fonction de détection, installation et configuration GPU (Nvidia/CUDA ou AMD/ROCm)
@@ -318,6 +318,38 @@ fi
 
 info "[LibreStorien] python3.11 disponible : $(which python3.11)"
 
+################################
+# Installation de uv           #
+################################
+
+# Vérification de la présence de uv
+if ! command -v uv >/dev/null 2>&1; then
+    info "[LibreStorien] uv introuvable. Tentative d'installation via le script officiel..."
+
+    # Utilisation du script d'installation auto-hébergé par Astral
+    if command -v curl >/dev/null 2>&1; then
+        curl -LsSf https://astral.sh/uv/install.sh | sh
+    elif command -v wget >/dev/null 2>&1; then
+        wget -qO- https://astral.sh/uv/install.sh | sh
+    else
+        error "[ERREUR] Ni curl ni wget n'est disponible pour installer uv."
+        exit 1
+    fi
+
+    # Ajout immédiat au PATH pour la session en cours (emplacement par défaut du script)
+    # uv s'installe généralement dans ~/.local/bin ou ~/.cargo/bin
+    export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
+
+    # Vérification finale
+    if ! command -v uv >/dev/null 2>&1; then
+        error "[ERREUR] L'installation de uv a échoué ou le binaire n'est pas dans le PATH."
+        exit 1
+    fi
+    success "[LibreStorien] uv a été installé avec succès."
+else
+    info "[LibreStorien] uv est déjà installé : $(which uv)"
+fi
+
 ##############################################
 # Dépendances système pour llama-cpp (Ubuntu)
 ##############################################
@@ -335,8 +367,8 @@ install_sys_package \
 ################################
 
 if [[ ! -d "$VENV_DIR" ]]; then
-  info "[LibreStorien] Création de la venv Python avec $PYTHON_BIN..."
-  "$PYTHON_BIN" -m venv "$VENV_DIR"
+  info "[LibreStorien] Création de la venv Python avec uv ($PYTHON_BIN)..."
+  uv venv "$VENV_DIR" --python "$PYTHON_BIN"
 fi
 
 info "[LibreStorien] Activation de la venv existante..."
@@ -350,8 +382,8 @@ if [[ -d "/usr/lib/wsl/lib" ]]; then
     export LD_LIBRARY_PATH="/usr/lib/wsl/lib:${LD_LIBRARY_PATH:-}"
 fi
 
-info "[LibreStorien] Mise à jour de pip..."
-python -m pip install --upgrade pip
+info "[LibreStorien] Mise à jour de uv..."
+uv self update || true
 
 # Configuration GPU si possible
 configure_gpu_support

@@ -44,6 +44,8 @@ if [[ ! -f "$LAUNCH_SCRIPT" ]]; then
     exit 1
 fi
 
+chmod +x "$LAUNCH_SCRIPT"
+
 # Nom de l’application
 read -rp "Nom de l'application (Appuyer sur Entrée pour LibreChat) : " APP_NAME
 APP_NAME="${APP_NAME:-LibreChat}"
@@ -72,7 +74,7 @@ echo "Type=Application"
 echo "Version=1.0"
 echo "Name=$APP_NAME"
 echo "Comment=Lancer $APP_NAME"
-echo "Exec=$LAUNCH_SCRIPT"
+echo "Exec=\"$LAUNCH_SCRIPT\""
 if [[ -f "$ICON_FILE" ]]; then
     echo "Icon=$ICON_FILE"
 fi

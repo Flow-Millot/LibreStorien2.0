@@ -1,146 +1,203 @@
-# README – LibreStorien 2.0
+# Documentation Technique & Guide de Déploiement - LibreStorien 2.0
 
-Assistant Documentaire Montpel'libre (Llama.cpp + OpenWebUI)
+* **Version du document :** 2.0 (Unifié)
+* **Cible :** Développeurs, DevOps, Administrateurs Système
+* **Objet :** Architecture, déploiement, configuration RAG et maintenance de l'Assistant Local.
 
-Ce projet fournit un environnement complet pour créer un assistant IA local, totalement autonome (sans API externe), capable de répondre exclusivement à partir des documents (RAG).
+## 1. Vue d'ensemble et Architecture
 
-Il repose sur :
+LibreStorien est une solution d'IA générative locale ("On-Premise") axée sur le RAG (Retrieval-Augmented Generation). Elle est conçue pour être agnostique du système hôte (Linux/macOS/WSL2) et gère automatiquement l'approvisionnement des ressources matérielles (CPU/GPU).
 
-* **llama.cpp** -> exécution locale d’un modèle GGUF
-* **OpenWebUI** -> interface utilisateur interactive
-* **Un launcher automatique Linux/macOS**
-* **Un script de configuration Knowledge/RAG**
+L'objectif est de fournir un assistant administratif fiable, reproductible, flexible et strictement basé sur les documents de l'association (ex: Rapports d'activités).
 
-L'objectif :
-*Avoir un assistant administratif fiable, reproductible, flexible et strictement basé sur les documents de l'association.*
+### 1.1 Stack Technologique
 
-# 0 - Prérequis et Avertissements
+* **Orchestration :** Scripts Bash (`launcher.sh`, `creation_raccourci.sh`).
+* **Gestionnaire de paquets Python :** `uv` (astral.sh) pour la rapidité et la gestion des venv.
+* **Runtime Python :** Python 3.11 (Hard requirement pour compatibilité OpenWebUI à date).
+* **Moteur d'inférence (Backend) :** `llama-cpp-python[server]` (Binding Python pour llama.cpp).
+* **Interface & RAG (Frontend/Middleware) :** `OpenWebUI`.
+* **Stockage Vectoriel :** ChromaDB (embarqué dans OpenWebUI).
 
-Ce projet utilise un modèle d'intelligence artificielle local (LLM et RAG). Contrairement à un site web classique, il nécessite des ressources matérielles conséquentes pour fonctionner de manière fluide.
+### 1.2 Flux de communication
 
-## 0.1 - Configuration Matérielle
+1. **Utilisateur** -> Navigateur Web -> **OpenWebUI** (Port `8080`).
+2. **OpenWebUI** -> API Call (Format OpenAI) -> **llama_cpp.server** (Port `10000`).
+3. **llama_cpp.server** -> Inférence sur fichier GGUF -> **Hardware** (CUDA/ROCm/Vulkan/CPU).
 
-L'outil est configuré pour tourner localement sur votre machine. Voici ce qu'il faut pour une expérience acceptable :
+## 2. Prérequis Système
+
+Le projet nécessite des ressources matérielles conséquentes pour fonctionner de manière fluide.
+
+### 2.1 Configuration Matérielle
 
 | Composant | Configuration Minimale (Lent) | Configuration Recommandée (Fluide) |
-| :--- | :--- | :--- |
+| --- | --- | --- |
 | **Processeur (CPU)** | Récent (AMD Ryzen 5 / Intel i5 / puce M2 Apple) | Récent (AMD Ryzen 7 / Intel i7 / puce M4 Apple) |
 | **Mémoire Vive (RAM)** | 16 Go DDR4 | 32 Go DDR4/DDR5 |
 | **Carte Graphique (GPU)** | Aucune (pour puce M4 seulement) ou AMD avec 12 Go VRAM | Nvidia RTX avec 16 Go VRAM |
 | **Stockage** | 10 Go d'espace libre | 10 Go d'espace libre |
 
-> **Note sur la VRAM :** Le projet est optimisé pour utiliser environ **12 Go de mémoire vidéo (VRAM)**. Si vous avez moins (ex: 6 Go ou 8 Go), le système basculera une partie du calcul sur le processeur, ce qui ralentira considérablement la génération des réponses.
+> **Note sur la VRAM :** Le projet est optimisé pour utiliser environ **12 Go de mémoire vidéo (VRAM)**. En dessous (ex: 6/8 Go), le système fera de l'offloading partiel sur le CPU, ralentissant la génération.
 
-## 0.2 - Prérequis Logiciels
-* **Système d'exploitation :** Linux (Ubuntu/Debian/Fedora/Arch), macOS (Homebrew) ou Windows via WSL2.
-* **Pilotes :** Si vous avez une carte Nvidia, les **drivers CUDA 12+** doivent être installés.
-* **Connexion Internet :** Requise uniquement pour le premier lancement (téléchargement des modèles).
+### 2.2 Prérequis Logiciels
 
-## 0.3 - Avertissement : Le Premier Lancement
+* **OS :** Linux (Ubuntu/Debian/Fedora/Arch), macOS (Homebrew) ou Windows via WSL2.
+* **Drivers GPU :**
+* *Nvidia :* Drivers CUDA 12+ installés.
+* *AMD :* ROCm (détecté par le script).
 
-**Soyez patient lors de la première exécution du script `launcher.sh`.**
 
-Le système doit télécharger automatiquement plusieurs modèles volumineux avant de pouvoir afficher l'interface :
-1.  Le modèle (phi-4-Q4_K_M)
-2.  Le modèle d'Embedding (OrdalieTech/Solon-embeddings-large-0.1)
-3.  Le modèle de Reranking (BAAI/bge-reranker-v2-m3)
+* **Réseau :** Connexion Internet requise uniquement au premier lancement (téléchargement des modèles).
 
-**Temps estimé :** Entre 2 et 10 minutes selon votre connexion fibre/ADSL.
-*Ne fermez pas le terminal si rien ne semble bouger, le téléchargement se fait en arrière-plan. Vous pouvez voir la progression du téléchargement dans les logs OpenWeb UI*
+## 3. Installation et Lancement (`launcher.sh`)
 
-# 1 - Launcher automatique (OpenWebUI + llama.cpp)
+Le fichier `launcher.sh` est le point d'entrée critique. Il agit comme un gestionnaire de configuration (CM) léger et un superviseur de processus.
 
-Ce projet inclut un launcher complet qui permet de démarrer l’environnement simplement en exécutant le fichier `launcher.sh`. Ce launcher a un objectif principal :
+### 3.1 Utilisation standard
 
-**démarrer automatiquement l’environnement IA libre et local LibreStorien** :
+Pour démarrer l'environnement :
 
 ```bash
 bash launcher.sh
 ```
 
-* Vérifie ou installe Python 3.11 (version compatible avec OpenWebUI)
-* Détecte la configuration (CPU/GPU NVIDIA/GPU AMD)
-* Crée la venv
-* Installe `llama-cpp-python[server]` et `open-webui`
-* Télécharge le modèle si nécessaire (phi-4-Q4_K_M.gguf par défaut, changer le nom dans le script si nécessaire)
-* Lance le serveur llama.cpp [http://127.0.0.1:10000](http://127.0.0.1:10000)
-* Lance OpenWebUI [http://127.0.0.1:8080](http://127.0.0.1:8080)
-* Ouvre automatiquement l'UI dans le navigateur
-* Attendre quelques instants pour voir apparaitre l'interface (le temps que tous les services soient up)
+**Avertissement Premier Lancement :**
+Soyez patient. Le système télécharge automatiquement plusieurs modèles volumineux (LLM + Embedding + Reranker).
+*Temps estimé :* 2 à 10 minutes. Ne fermez pas le terminal.
 
-## 1.1 - Services lancés
+### 3.2 Analyse technique du script (Under the hood)
 
-| Service          | Port      | Fonction                                          |
-| ---------------- | --------- | ------------------------------------------------- |
-| llama_cpp.server | **10000** | Inférence OpenAI-compatible servie par le modèle GGUF   |
-| OpenWebUI        | **8080**  | Interface utilisateur, gestion RAG, knowledge, UI |
+Le script effectue la séquence d'initialisation suivante :
 
-## 1.2 - Lire les logs
+1. **Détection OS/Pkg Manager :** Supporte `apt`, `dnf`, `pacman`, `brew`.
+2. **Bootstrapping Python :** Vérifie `python3.11`. Installe si absent (gestion des PPA pour Ubuntu).
+3. **Installation de `uv` :** Télécharge le binaire `uv` pour gérer les dépendances.
+4. **Environnement Virtuel :** Création/Activation de `.venv`.
+5. **Détection Matérielle & Compilation JIT :** Analyse le GPU et compile `llama-cpp` avec les bons flags (voir Section 4).
+6. **Gestion des Modèles :** Téléchargement via `curl`/`wget` si les fichiers GGUF sont absents.
+7. **Lancement des Daemons :**
+* `llama_cpp.server` (Port 10000) en background.
+* `open-webui serve` (Port 8080) en background.
 
-* `log_llamacpp.txt` -> logs du modèle local
-* `log_openwebui.txt` -> logs OpenWebUI
 
-## 1.3 - Arrêt contrôlé
+8. **Supervision :** Capture des signaux `trap` (EXIT, INT, TERM) pour tuer proprement les processus enfants (`kill_service`) et vider la VRAM.
 
-Le script capture `Ctrl+C` ou fermeture terminal ->
-Il tue proprement les processus lancés et vide la RAM du modèle chargé.
+### 3.3 Variables d'Environnement Critiques (Injection)
 
-## 1.4 - Ouvrir OpenWebUI
-[http://127.0.0.1:8080](http://127.0.0.1:8080)
+Le script injecte des variables dynamiques avant le runtime Python :
 
-# 2. Configuration Connaissance (RAG) + Assistant LibreStorien
+| Variable | Valeur (Exemple) | Description |
+| --- | --- | --- |
+| `CMAKE_ARGS` | `-DGGML_CUDA=on` | Force les flags de compilation pour `llama-cpp-python`. |
+| `FORCE_CMAKE` | `1` | Oblige `pip`/`uv` à recompiler le wheel binaire. |
+| `HSA_OVERRIDE_GFX_VERSION` | `10.3.0` | **AMD Specific.** Support des cartes Radeon Consumer (RX 6000/7000) sur ROCm. |
+| `MESA_LOADER_DRIVER_OVERRIDE` | `dzn` | **WSL2 Specific.** Force l'usage de Mesa Dozen (Vulkan over D3D12). |
 
-Une fois l'interface lancée, aller dans :
+## 4. Gestion de l'Accélération Matérielle (GPU)
 
-1. Espace de travail
-2. Connaissance
-3. Créer une connaissance
+Le script implémente une logique de détection et de *Self-Healing* (auto-réparation) des dépendances GPU.
 
-Nommez-la "Activités [Année en cours]"
+### 4.1 Logique de détection (`configure_gpu_support`)
 
-Et déposer le fichier **activites/activites.md** contenant toutes les activités formatées de l'année 2025 dans cet espace. Le modèle s'appuiera sur le contenu de ce document pour répondre.
+1. **NVIDIA (Priorité 1) :**
+* Check : `nvidia-smi`.
+* Action : Vérifie `nvcc`. Si absent, installe CUDA Toolkit. Set `CMAKE_ARGS="-DGGML_CUDA=on"`.
 
-Voici le format des activités pour aider le modèle à sélectionner les bons sujets :
+
+2. **AMD ROCm (Priorité 2) :**
+* Check : `rocm-smi` ou `rocminfo`.
+* Action : Vérifie `hipcc`. Si absent, installe `rocm-hip-sdk`. Set `CMAKE_ARGS="-DGGML_HIPBLAS=on"`.
+* *Note :* Désactivation forcée de Flash Attention sur AMD pour stabilité.
+
+
+3. **Vulkan / WSL2 (Priorité 3) :**
+* Check : Présence de `libd3d12.so` (WSL) ou `vulkaninfo`.
+* Action : Installe shaders/headers Vulkan. Set `CMAKE_ARGS="-DGGML_VULKAN=on"`.
+
+
+4. **CPU (Fallback) :** Aucune compilation spécifique.
+
+### 4.2 Mécanisme de changement de configuration
+
+Le script maintient un fichier d'état `.venv/.installed_mode`. Au lancement, il compare le mode détecté (ex: `cuda`) avec le dernier mode installé.
+
+* **Si différence :** Force la réinstallation complète (`--force-reinstall --no-cache-dir`) de `llama-cpp-python` pour recompiler les binaires partagés.
+
+## 5. Configuration des Services & Modèles
+
+### 5.1 Serveur d'Inférence (Llama.cpp)
+
+Lancé via `python -m llama_cpp.server`.
+
+* **Port :** 10000
+* **Contexte (`n_ctx`) :** 16384 tokens.
+* **Offloading GPU (`n_gpu_layers`) :** `-1` (Tout sur le GPU). *À ajuster si OOM.*
+* **Flash Attention :** Activé par défaut (`--flash_attn true`) sauf sur AMD/Vulkan.
+
+### 5.2 OpenWebUI & Configuration RAG
+
+OpenWebUI est configuré via variables d'environnement. Le pipeline RAG est hardcodé pour utiliser des modèles spécifiques :
+
+```bash
+ENABLE_OLLAMA_API="False"           # Backend OpenAI (llama-cpp)
+OPENAI_API_BASE_URL="http://127.0.0.1:10000/v1"
+
+# Embedding (Vectorisation)
+RAG_EMBEDDING_MODEL="OrdalieTech/Solon-embeddings-base-0.1"
+
+# Chunking
+CHUNK_SIZE="500"
+CHUNK_OVERLAP="50"
+
+# Retrieval & Reranking
+RAG_TOP_K="99"                      # Récupère large
+RAG_RERANKING_ENGINE="sentence_transformers"
+RAG_RERANKING_MODEL="BAAI/bge-reranker-v2-m3" # Trie par pertinence
+RAG_TOP_K_RERANKER="89"             # Garde les meilleurs après rerank
 
 ```
+
+### 5.3 Modèles utilisés
+
+Définis dans les variables en tête de script `launcher.sh` :
+
+1. **LLM Principal :** `phi-4-Q4_K_M.gguf` (HuggingFace unsloth/phi-4-GGUF).
+2. **Modèle Embedding :** `OrdalieTech/Solon-embeddings-base-0.1`.
+3. **Modèle Reranker :** `BAAI/bge-reranker-v2-m3`.
+
+## 6. Guide Opérationnel : RAG et Assistant
+
+Une fois l'interface accessible sur [http://127.0.0.1:8080](http://127.0.0.1:8080), suivez ces étapes pour configurer l'assistant documentaire.
+
+### 6.1 Configuration de la Connaissance (Knowledge)
+
+1. Aller dans **Espace de travail > Connaissance > Créer une connaissance**.
+2. Nommer : "Activités [Année en cours]".
+3. Déposer le fichier déjà prêt Markdown (`activites/activites.md` à la racine du projet).
+
+**Format requis du fichier source pour le RAG :**
+
+```markdown
 #Activité : Rendez-vous L'apéro des quatre libertés
 **Type :** Rencontre
 **Date :** Jeudi 17 avril 2025 de 19h00 à 21h00
 **Lieu :** Atelier des Pigistes, 171 bis, rue Frimaire, 34000 Montpellier
-**Description :** Rencontre autour des travaux de l’April, FSF, FSFE et La Quadrature Du Net.
-```
-
-# 3. Création du modèle custom LibreStorien
-
-Une fois la Connaissance prête, il est temps de créer le modèle associé. Aller dans :
-
-1. Espace de Travail
-2. Modèles
-3. Nouveau Modèle
-
-- #### Nom du modèle
-
-Choisir un nom (par exemple : "Rapport d'activité")
-
-- #### Base du modèle
-
-Choisir le modèle déjà chargé depuis le menu déroulant (par exemple : phi-4)
-
-- #### Description
-
-Ajouter une description (par exemple) :
+**Description :** Rencontre autour des travaux de l’April, FSF, FSFE...
 
 ```
-Ce modèle assiste à la rédaction du rapport d'activité
-```
 
-- #### System Prompt
+### 6.2 Création du Modèle Custom
 
-Copier-coller le prompt affiché par le script.
+Aller dans **Espace de Travail > Modèles > Nouveau Modèle**.
 
-Voici la version complète :
+* **Nom :** Rapport d'activité.
+* **Base du modèle :** Sélectionner le modèle chargé (ex: phi-4).
+* **Connaissances :** Sélectionner la base créée ci-dessus.
+* **Capacités :** Décocher "Recherche Web", "Génération d'images", "Interpréteur de code".
+* **System Prompt (Copier-coller) :**
 
-```
+```text
 ### RÔLE & OBJECTIF
 Tu es le secrétaire de l'association Montpel'libre. TA SEULE MISSION : Lire le document fourni en source et extraire les activités réelles pour remplir le rapport ci-dessous. NE JAMAIS afficher les consignes ou le modèle vide. Affiche UNIQUEMENT le résultat rempli.
 
@@ -164,172 +221,54 @@ Arrête-toi immédiatement après la Partie 6. N'écris jamais de "Conclusion" o
 Adopte un ton institutionnel, neutre mais valorisant pour le bénévolat. Utilise le passé car il s'agit d'activités passées.
 ```
 
-- #### Prompt par défaut
+### 6.3 Utilisation (Prompting)
 
-**(Fortement conseillé)** Possibilité de rajouter une suggestion de prompt au moment de la création d'une nouvelle conversation avec ce modèle.
+Pour éviter la saturation mémoire, générez le rapport par type d'activité.
+Types disponibles : *Atelier, Conférence, Événementiel, Festival, Hackathon, Install-Party, Permanence, Radio, Rencontre, Réunion Interne, Salon, Stage, Technique*.
 
-Cliquer sur Ajouter, puis placer ce texte dans "prompt" :
+**Exemple de prompt :**
 
-```
+```text
 Liste exhaustivement toutes les activités dont le Type contient le mot "Permanence".
-```
-
-- #### Connaissances
-
-Sélectionner la Connaissance préalablement chargée.
-
-- #### Capacités
-
-Décocher ou cocher les outils souhaités.
-Par exemple, dans ce contexte il faut éviter :
-- Recherche Web
-- Génération d'images
-- Interpréteur de code
-
-# 4 - Utilisation pour le Rapport d'activité
-
-1. Aller dans Conversations
-2. Créer une nouvelle conversation
-3. Sélectionner le modèle avec le nom préalablement choisi
-
-Le modèle est prêt à être interrogé.
-
-# 5 - Guide d'utilisation
-
-Les activités ont chacune un Type associé, dont voici la liste complète :
-
-* **Atelier** (ex: Atel'libre, Groupia, Blender, PAO)
-* **Conférence** (ex: JdLL, RAFLL journées d'étude, RMS, Conférences thématiques)
-* **Événementiel** (ex: Fête de la Science, Libre en Fête, Matos Gratos, Opération Mayotte)
-* **Festival** (ex: Le printemps du climat, Semaine Culturelle des afriques)
-* **Hackathon** (ex: HOTOSM, Fintech Mauritanie)
-* **Install-Party** (ex: Jerripartie, Installe Partie Linux, Installe Partie Mayotte)
-* **Permanence** (ex: Linuxerie, Wikipermanence)
-* **Radio** (ex: Émissions FM-Plus "Temps Libre", "Entrée Libre")
-* **Rencontre** (ex: Apéros, Pique-niques, HérOSM, Framapermanence)
-* **Réunion Interne** (ex: AG, Réunions d'organisation RAFLL/CLO)
-* **Salon** (ex: Stand JdLL, Antigone des Assos)
-* **Stage** (ex: Stage Jeux vidéo Gdevelop)
-* **Technique** (ex: Booster Camps)
-
-La stratégie va donc être de demander au modèle de rédiger et faire la liste de toutes les activités par type.
-
-Pour de meilleurs résultats, il est fortement recommandé d'utiliser la question suivante afin de faire générer le rapport partie par partie. En effet, essayer de générer l'entièreté du rapport en un message risque de conduire à une saturation de la mémoire de l'ordinateur et donc à une réponse incorrecte et imprécise.
 
 ```
-Liste exhaustivement toutes les activités dont le Type contient le mot "Permanence".
-```
 
-Puis refaire la même opération en changeant simplement le type.
+## 7. Intégration Desktop
 
-# 6 - Ouverture
+Le script `creation_raccourci.sh` permet l'intégration dans les environnements de bureau Linux (GNOME/KDE/XFCE).
 
-En suivant cette procédure, il est ainsi possible de créer une Connaissance et un modèle pour chaque type de document désiré. Il faudra cependant adapter le prompt system du modèle, et peut-être certains paramétrages dans le panneau administrateur, suivant le besoin et la taille des documents de la Connaissance.
+* **Usage :** `./creation_raccourci.sh` (dans le même dossier que `launcher.sh`).
+* **Fonctionnement :** Génère un fichier `.desktop` conforme XDG avec chemins absolus dynamiques.
+* **Emplacement :** `~/.local/share/applications/` et copie sur le Bureau.
 
-De plus, il est tout à fait possible de sélectionner le modèle de base chargé par défaut dans l'interface et de lui poser directement des questions sur un document qu'on aura joint avec le prompt (ex : questionner un document Appel d'Offres pour connaitre les informations qu'il contient).
+## 8. Maintenance et Troubleshooting
 
-# 7 - Questionnaire amélioration et retour client
+### 8.1 Mise à jour de l'application
 
-Nous souhaitons recueillir votre retour pour mesurer l'impact de notre solution et valider ou non nos critères de succès.
+Le `launcher.sh` exécute `update_python_deps` à chaque lancement :
 
-[Lien vers le questionnaire](https://framaforms.org/questionnaire-de-satisfaction-librestorien20-1765287993)
+* Met à jour `open-webui` (dernière version stable PyPI).
+* Ne met à jour `llama-cpp-python` que si la config matérielle change ou sur demande explicite.
 
-# 8 - Optionnel: Création automatique d’un raccourci d’application (.desktop) Linux
+### 8.2 Changer de Modèle LLM
 
-Ce script permet de générer automatiquement un raccourci d'application Linux pour lancer LibreStorien (ou tout autre script).
-Il crée :
-
-* un fichier `.desktop` dans :
-  `~/.local/share/applications/`
-* un raccourci exécutable directement sur le bureau
-* une entrée visible dans le menu des applications
-
-Cela permet de lancer l'assistant IA comme une application native, sans passer par le terminal.
-
-## 8.1 - Fonction du script
-
-Le script :
-
-1. détecte automatiquement le dossier dans lequel il se trouve
-2. localise le script de lancement `launcher.sh`
-3. optionnellement, utilise une icône `icon.jpeg` si elle est présente
-4. demande à l’utilisateur le nom de l’application
-5. génère un fichier `.desktop` correctement formaté
-6. copie ce raccourci sur le bureau
-7. rend le tout exécutable
-
-## 8.2 - Pré-requis
-
-Placer dans le **même dossier** :
-
-```
-creation_raccourci.sh
-launcher.sh
-icon.jpeg   (optionnel)
-```
-
-Ensuite rendre le script exécutable :
+Modifier les variables dans `launcher.sh` :
 
 ```bash
-chmod +x creation_raccourci.sh
-```
-
-## 8.3 - Utilisation
-
-Lancer simplement :
-
-```bash
-./creation_raccourci.sh
-```
-
-Le script :
-
-1. Demande un nom d’application (ex. : `LibreChat`, `LibreStorien`, etc.)
-2. Crée automatiquement :
+MODEL_FILE="nouveau-modele-Q4_K_M.gguf"
+HF_URL="https://huggingface.co/auteur/repo/resolve/main/${MODEL_FILE}"
 
 ```
-~/.local/share/applications/<nom>.desktop
-~/Desktop/<nom>.desktop  (ou ~/Bureau selon la langue)
-```
 
-## 8.4 - Contenu généré du fichier .desktop
+*Le script téléchargera automatiquement le nouveau modèle au prochain lancement.*
 
-Le script génère automatiquement un fichier du type :
+### 8.3 Problèmes Courants
 
-```
-[Desktop Entry]
-Type=Application
-Version=1.0
-Name=<nom>
-Comment=Lancer <nom>
-Exec=/chemin/vers/launcher.sh
-Icon=/chemin/vers/icon.jpeg
-Terminal=true
-Categories=Utility;Development;
-```
+* **Erreur `nvcc not found` :** Vérifier le PATH (souvent `/usr/local/cuda/bin`).
+* **Crash AMD (Segfault) :** Vérifier que Flash Attention est bien désactivé pour AMD dans le script.
+* **Boucle de réinstallation :** Supprimer le dossier `.venv` pour forcer une réinstallation propre.
+* **Conflit de ports :** Si 10000 ou 8080 occupés, modifier `LLAMA_PORT` et `OPENWEBUI_PORT` dans le script.
 
-Il est exécutable et reconnu par les environnements de bureau :
+## 9. Retour et Amélioration
 
-* KDE Plasma
-* GNOME
-* XFCE
-* Cinnamon
-* Mate
-* Deepin
-
-## 8.5 - Exécution sécurisée
-
-Le script :
-
-* n’écrase pas de fichier `.desktop` système
-* copie uniquement dans les emplacements utilisateur
-* respecte les conventions Freedesktop
-
-## 8.6 - Suppression du raccourci
-
-Pour supprimer le raccourci d’application :
-
-```bash
-rm ~/.local/share/applications/<nom>.desktop
-rm ~/Desktop/<nom>.desktop
-```
+[Lien vers le questionnaire de satisfaction LibreStorien 2.0](https://framaforms.org/questionnaire-de-satisfaction-librestorien20-1765287993)

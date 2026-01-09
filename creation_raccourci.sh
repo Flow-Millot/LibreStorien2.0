@@ -44,6 +44,8 @@ if [[ ! -f "$LAUNCH_SCRIPT" ]]; then
     exit 1
 fi
 
+chmod +x "$LAUNCH_SCRIPT"
+
 # Nom de l’application
 read -rp "Nom de l'application (Appuyer sur Entrée pour LibreChat) : " APP_NAME
 APP_NAME="${APP_NAME:-LibreChat}"

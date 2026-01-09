@@ -74,7 +74,7 @@ echo "Type=Application"
 echo "Version=1.0"
 echo "Name=$APP_NAME"
 echo "Comment=Lancer $APP_NAME"
-echo "Exec=$LAUNCH_SCRIPT"
+echo "Exec=\"$LAUNCH_SCRIPT\""
 if [[ -f "$ICON_FILE" ]]; then
     echo "Icon=$ICON_FILE"
 fi

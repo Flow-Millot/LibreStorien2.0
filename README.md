@@ -10,6 +10,8 @@ LibreStorien est une solution d'IA générative locale ("On-Premise") axée sur 
 
 L'objectif est de fournir un assistant administratif fiable, reproductible, flexible et strictement basé sur les documents de l'association (ex: Rapports d'activités).
 
+![Architecture du projet](images/README/architecture.png)
+
 ### 1.1 Stack Technologique
 
 * **Orchestration :** Scripts Bash (`launcher.sh`, `creation_raccourci.sh`).

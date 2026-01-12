@@ -538,10 +538,10 @@ else
     OPENAI_API_BASE_URL="http://127.0.0.1:${LLAMA_PORT}/v1" \
     MODEL_TEMPERATURE="0.1" \
     RAG_EMBEDDING_MODEL="OrdalieTech/Solon-embeddings-base-0.1" \
-    CHUNK_SIZE="500" \
+    CHUNK_SIZE="200" \
     CHUNK_OVERLAP="50" \
-    RAG_TOP_K="99" \
-    RAG_TOP_K_RERANKER="89" \
+    RAG_TOP_K="89" \
+    RAG_TOP_K_RERANKER="79" \
     RAG_RELEVANCE_THRESHOLD="0" \
     RAG_RERANKING_ENGINE="sentence_transformers" \
     RAG_RERANKING_MODEL="BAAI/bge-reranker-v2-m3" \

@@ -29,7 +29,7 @@ Ce projet, développé à l'origine pour [Montpel'Libre](https://montpellibre.fr
 
 | Élément | Détenteur des droits | Licence | Fichier / Lien | Description |
 | --- | --- | --- | --- | --- |
-| **Code Source** | [Montpel'Libre](https://montpellibre.fr/), [API](https://apifr.org/) et équipe LibreStorien2.0 | [AGPLv3](./LICENSE) | [LICENSE](./LICENSE) | Permet la réutilisation, la modification et la distribution, sous réserve de mentionner les auteurs originaux. |
+| **Code Source** | [Montpel'Libre](https://montpellibre.fr/), [API](https://apifr.org/) et équipe LibreStorien2.0 | [AGPLv3](./LICENSE) | [LICENSE](./LICENSE) | Virale, oblige ceux qui modifient le code à republier leurs modifications en open source |
 | **Documentation** | [Montpel'Libre](https://montpellibre.fr/), [API](https://apifr.org/) et équipe LibreStorien2.0  | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/deed.fr) | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/deed.fr) | Autorise le partage et l'adaptation des textes et guides, à condition de créditer et de partager sous la même licence. |
 
 ### 0.4 Dépendances Python

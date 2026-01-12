@@ -276,49 +276,6 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 ################################
-# Vérification / installation de Python 3.11
-################################
-
-PYTHON_BIN="python3.11"
-
-if ! command -v "$PYTHON_BIN" >/dev/null 2>&1; then
-    warn "[LibreStorien] python3.11 introuvable. Tentative d'installation..."
-
-    case "$PKG_MANAGER" in
-        apt)
-            $UPDATE_CMD
-            $INSTALL_CMD software-properties-common
-            sudo add-apt-repository -y ppa:deadsnakes/ppa
-            $UPDATE_CMD
-            $INSTALL_CMD python3.11 python3.11-venv python3.11-distutils
-            ;;
-        dnf)
-            $INSTALL_CMD python3.11 python3.11-devel
-            ;;
-        pacman)
-            $INSTALL_CMD python311
-            ;;
-        brew)
-            $INSTALL_CMD python@3.11
-            brew link python@3.11 --force
-            ;;
-        *)
-            error "[ERREUR] Impossible d'installer python3.11 automatiquement (OS non détecté)."
-            warn "Installe python3.11 manuellement puis relance."
-            exit 1
-            ;;
-    esac
-
-    # Re-vérifier
-    if ! command -v "$PYTHON_BIN" >/dev/null 2>&1; then
-        error "[ERREUR] python3.11 n'a pas pu être installé."
-        exit 1
-    fi
-fi
-
-info "[LibreStorien] python3.11 disponible : $(which python3.11)"
-
-################################
 # Installation de uv           #
 ################################
 
@@ -366,9 +323,14 @@ install_sys_package \
 # 1. Création / activation venv #
 ################################
 
+PYTHON_VERSION="3.11"
+
+info "[LibreStorien] Vérification / Téléchargement de Python "$PYTHON_VERSION" via uv..."
+uv python install "$PYTHON_VERSION" --quiet
+
 if [[ ! -d "$VENV_DIR" ]]; then
-  info "[LibreStorien] Création de la venv Python avec uv ($PYTHON_BIN)..."
-  uv venv "$VENV_DIR" --python "$PYTHON_BIN"
+  info "[LibreStorien] Création de la venv Python avec uv..."
+  uv venv "$VENV_DIR" --python "$PYTHON_VERSION"
 fi
 
 info "[LibreStorien] Activation de la venv existante..."

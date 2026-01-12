@@ -4,6 +4,48 @@
 * **Cible :** Développeurs, DevOps, Administrateurs Système
 * **Objet :** Architecture, déploiement, configuration RAG et maintenance de l'Assistant Local.
 
+## 0. Licences
+
+Ce projet intègre et utilise plusieurs composants tiers open-source.
+Les listes ci-dessous créditent les auteurs originaux conformément à leurs licences respectives.
+
+### 0.1 Outils logiciels
+* **OpenWeb UI**
+    * **Licence :** OpenWeb UI License
+    * **Source :** [Open WebUI License](https://docs.openwebui.com/license/)
+* **Llama.cpp**
+    * **Auteur :** ggml-org
+    * **Licence :** MIT License
+    * **Source :** [llama.cpp](https://github.com/ggml-org/llama.cpp?tab=MIT-1-ov-file)
+* **uv**
+    * **Auteur :** Astral
+    * **Licence :** MIT License
+    * **Source :** [Astral - uv](https://docs.astral.sh/uv/reference/policies/license/)
+* **Python 3.11**
+    * **Auteur :** Python.org
+    * **Licence :** PSF License
+    * **Source :** [Python 3.11](https://www.python.org/psf-landing/)
+
+### 0.2 Modèles
+* **Modèle LLM : Phi-4**
+    * **Auteur :** Microsoft
+    * **Licence :** MIT License
+    * **Source :** [HuggingFace - unsloth/phi-4-GGUF](https://huggingface.co/unsloth/phi-4-GGUF/tree/main)
+
+* **Modèle d'Embedding : Solon-embeddings-base-0.1**
+    * **Auteur :** OrdalieTech
+    * **Licence :** MIT License
+    * **Source :** [HuggingFace - OrdalieTech/Solon-embeddings-base-0.1](https://huggingface.co/OrdalieTech/Solon-embeddings-base-0.1)
+
+* **Modèle de Reranking : BGE-Reranker-v2-m3**
+    * **Auteur :** BAAI (Beijing Academy of Artificial Intelligence)
+    * **Licence :** Apache 2.0 License
+    * **Source :** [HuggingFace - BAAI/bge-reranker-v2-m3](https://huggingface.co/BAAI/bge-reranker-v2-m3)
+
+### 0.3 Dépendances Python
+
+Une liste complète des bibliothèques Python utilisées et de leurs licences est disponible dans le fichier généré automatiquement [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md).
+
 ## 1. Vue d'ensemble et Architecture
 
 LibreStorien est une solution d'IA générative locale ("On-Premise") axée sur le RAG (Retrieval-Augmented Generation). Elle est conçue pour être agnostique du système hôte (Linux/macOS/WSL2) et gère automatiquement l'approvisionnement des ressources matérielles (CPU/GPU).
@@ -49,8 +91,21 @@ Le projet nécessite des ressources matérielles conséquentes pour fonctionner 
 * *Nvidia :* Drivers CUDA 12+ installés.
 * *AMD :* ROCm (détecté par le script).
 
+### 2.3 Limitations Techniques
 
+* **Exigence Matérielle (VRAM) :** Le projet est optimisé pour des GPU disposant d'au moins **12 Go de VRAM**. En dessous de ce seuil, le système basculera une partie du modèle sur la RAM système (CPU offloading), entraînant un ralentissement significatif de la génération.
+* **Support Windows :** Il n'existe pas d'exécutable natif (`.exe`). Les utilisateurs Windows doivent utiliser le sous-système **WSL2** (Ubuntu) et installer les drivers appropriés (Mesa/Dozen pour Vulkan ou CUDA pour Nvidia).
+* **Spécificités AMD (ROCm) :** Bien que supportées, les cartes AMD ne bénéficient pas de l'optimisation *Flash Attention* (désactivée pour garantir la stabilité) et nécessitent l'override `HSA_OVERRIDE_GFX_VERSION` pour les cartes grand public (RX 6000/7000).
+* **Version Python Stricte :** Le projet dépend strictement de **Python 3.11** pour assurer la compatibilité avec `OpenWebUI` et les wheels précompilés de `llama-cpp-python`. Les autres versions ne sont pas supportées automatiquement.
 * **Réseau :** Connexion Internet requise uniquement au premier lancement (téléchargement des modèles).
+
+### 2.4 Limitations d'Usage
+
+* **Mono-Utilisateur :** Cette architecture est conçue pour un usage local personnel. Elle n'est pas dimensionnée pour gérer plusieurs utilisateurs simultanés (concurrence d'accès au port 10000/8080 et saturation VRAM). Cependant un système de compte et d'accès pourra être mis en place dans le futur.
+* **Fenêtre de Contexte :** Le modèle est configuré avec un contexte de **16 384 tokens** (`n_ctx`). Si les documents analysés via le RAG dépassent cette limite cumulée lors de la récupération, les informations les plus anciennes ou les moins pertinentes seront tronquées. De plus, il est important de jouer sur les paramètres de `Taille de chunks`, `Top K` et `Top K reranker`, dans le [Panneau administrateur, Réglages, Document](http://localhost:8080/admin/settings/documents) vous permettant ainsi d'optimiser la consommation de la VRAM.
+* **Quantification du Modèle :** Le modèle utilisé (`phi-4-Q4_K_M.gguf`) est une version "quantifiée" (compressée). Bien que performante, elle peut présenter une légère perte de précision par rapport aux modèles non compressés (FP16).
+* Pour le moment, il est possible d'utiliser le RAG pour l'aide à la rédaction du rapport d'activités, échanger avec le modèle seul en analyse sur un document passé dans la conversation, et utiliser le modèle seul sans contexte pour la correction orthographique et l'aide à la formulation.
+
 
 ## 3. Installation et Lancement (`launcher.sh`)
 

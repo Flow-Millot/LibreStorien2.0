@@ -194,14 +194,14 @@ OPENAI_API_BASE_URL="http://127.0.0.1:10000/v1"
 RAG_EMBEDDING_MODEL="OrdalieTech/Solon-embeddings-base-0.1"
 
 # Chunking
-CHUNK_SIZE="500"
+CHUNK_SIZE="200"
 CHUNK_OVERLAP="50"
 
 # Retrieval & Reranking
-RAG_TOP_K="99"                      # Récupère large
+RAG_TOP_K="89"                      # Récupère large
 RAG_RERANKING_ENGINE="sentence_transformers"
 RAG_RERANKING_MODEL="BAAI/bge-reranker-v2-m3" # Trie par pertinence
-RAG_TOP_K_RERANKER="89"             # Garde les meilleurs après rerank
+RAG_TOP_K_RERANKER="79"             # Garde les meilleurs après rerank
 
 ```
 

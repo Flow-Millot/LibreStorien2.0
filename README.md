@@ -6,43 +6,33 @@
 
 ## 0. Licences
 
-Ce projet intègre et utilise plusieurs composants tiers open-source.
-Les listes ci-dessous créditent les auteurs originaux conformément à leurs licences respectives.
+Ce projet, développé à l'origine pour [Montpel'Libre](https://montpellibre.fr/) et [API : Action d'Intérêt Collectif](https://apifr.org/), intègre et utilise plusieurs composants tiers open-source. Les tableaux ci-dessous créditent les auteurs originaux conformément à leurs licences respectives.
 
 ### 0.1 Outils logiciels
-* **OpenWeb UI**
-    * **Licence :** OpenWeb UI License
-    * **Source :** [Open WebUI License](https://docs.openwebui.com/license/)
-* **Llama.cpp**
-    * **Auteur :** ggml-org
-    * **Licence :** MIT License
-    * **Source :** [llama.cpp](https://github.com/ggml-org/llama.cpp?tab=MIT-1-ov-file)
-* **uv**
-    * **Auteur :** Astral
-    * **Licence :** MIT License
-    * **Source :** [Astral - uv](https://docs.astral.sh/uv/reference/policies/license/)
-* **Python 3.11**
-    * **Auteur :** Python.org
-    * **Licence :** PSF License
-    * **Source :** [Python 3.11](https://www.python.org/psf-landing/)
+
+| Composant | Auteur | Licence | Source | Description / Usage |
+| --- | --- | --- | --- | --- |
+| **OpenWeb UI** | Open WebUI | OpenWeb UI License | [Open WebUI License](https://docs.openwebui.com/license/) | Utilisé pour l'interface et la configuration du RAG. |
+| **Llama.cpp** | ggml-org | MIT License | [llama.cpp](https://github.com/ggml-org/llama.cpp?tab=MIT-1-ov-file) | Utilisé comme moteur d'inférence entre le modèle chargé en local et l'interface configurée. |
+| **uv** | Astral | MIT License | [Astral - uv](https://docs.astral.sh/uv/reference/policies/license/) | Gestionnaire de paquets et d'installation pour toutes les dépendances du projet. Choisi pour sa rapidité. |
+| **Python 3.11** | Python.org | PSF License | [Python 3.11](https://www.python.org/psf-landing/) | Version stable et fiable pour le déploiement de notre projet (compatible avec tous les outils précédents). |
 
 ### 0.2 Modèles
-* **Modèle LLM : Phi-4**
-    * **Auteur :** Microsoft
-    * **Licence :** MIT License
-    * **Source :** [HuggingFace - unsloth/phi-4-GGUF](https://huggingface.co/unsloth/phi-4-GGUF/tree/main)
 
-* **Modèle d'Embedding : Solon-embeddings-base-0.1**
-    * **Auteur :** OrdalieTech
-    * **Licence :** MIT License
-    * **Source :** [HuggingFace - OrdalieTech/Solon-embeddings-base-0.1](https://huggingface.co/OrdalieTech/Solon-embeddings-base-0.1)
+| Modèle | Auteur | Licence | Source | Justification / Rôle |
+| --- | --- | --- | --- | --- |
+| **Phi-4 Q4** (LLM) | Microsoft | MIT License | [HuggingFace - unsloth/phi-4-GGUF](https://huggingface.co/unsloth/phi-4-GGUF/tree/main) | Modèle LLM choisi suite à un benchmark complet (classement des LLM français + transparence AI Act). Compromis idéal entre performance, transparence et dimensionnement matériel (12Go VRAM). |
+| **Solon-embeddings-base-0.1** (Embedding) | OrdalieTech | MIT License | [HuggingFace - OrdalieTech/Solon-embeddings-base-0.1](https://huggingface.co/OrdalieTech/Solon-embeddings-base-0.1) | Utilisé pour la vectorisation des chunks pour chaque réponse. Il est bien entraîné en français et peu gourmand en ressources dans la configuration pc voulue. |
+| **BGE-Reranker-v2-m3** (Reranking) | BAAI | Apache 2.0 License | [HuggingFace - BAAI/bge-reranker-v2-m3](https://huggingface.co/BAAI/bge-reranker-v2-m3) | Classe les éléments de réponse pour le LLM par pertinence, performant en français et léger. |
 
-* **Modèle de Reranking : BGE-Reranker-v2-m3**
-    * **Auteur :** BAAI (Beijing Academy of Artificial Intelligence)
-    * **Licence :** Apache 2.0 License
-    * **Source :** [HuggingFace - BAAI/bge-reranker-v2-m3](https://huggingface.co/BAAI/bge-reranker-v2-m3)
+### 0.3 Code et documentation
 
-### 0.3 Dépendances Python
+| Élément | Détenteur des droits | Licence | Fichier / Lien | Description |
+| --- | --- | --- | --- | --- |
+| **Code Source** | [Montpel'Libre](https://montpellibre.fr/), [API](https://apifr.org/) et équipe LibreStorien2.0 | [AGPLv3](./LICENCE) | [LICENSE](./LICENCE) | Virale, oblige ceux qui modifient le code à republier leurs modifications en open source |
+| **Documentation** | [Montpel'Libre](https://montpellibre.fr/), [API](https://apifr.org/) et équipe LibreStorien2.0  | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/deed.fr) | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/deed.fr) | Autorise le partage et l'adaptation des textes et guides, à condition de créditer et de partager sous la même licence. |
+
+### 0.4 Dépendances Python
 
 Une liste complète des bibliothèques Python utilisées et de leurs licences est disponible dans le fichier généré automatiquement [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md).
 
@@ -204,14 +194,14 @@ OPENAI_API_BASE_URL="http://127.0.0.1:10000/v1"
 RAG_EMBEDDING_MODEL="OrdalieTech/Solon-embeddings-base-0.1"
 
 # Chunking
-CHUNK_SIZE="500"
+CHUNK_SIZE="200"
 CHUNK_OVERLAP="50"
 
 # Retrieval & Reranking
-RAG_TOP_K="99"                      # Récupère large
+RAG_TOP_K="89"                      # Récupère large
 RAG_RERANKING_ENGINE="sentence_transformers"
 RAG_RERANKING_MODEL="BAAI/bge-reranker-v2-m3" # Trie par pertinence
-RAG_TOP_K_RERANKER="89"             # Garde les meilleurs après rerank
+RAG_TOP_K_RERANKER="79"             # Garde les meilleurs après rerank
 
 ```
 
